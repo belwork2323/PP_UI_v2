@@ -8,6 +8,7 @@ import {
   type SchemaFormValues,
   type SchemaSectionSubmission,
 } from "../../../../../schemaManagement";
+import type { SchemaSetupContext } from "../../../../../schemaManagement/utils/schemaSetupContext";
 import { CASTING_CURING_BRAND } from "../../../../../app/theme/custom_themes/user/manufacturing/castingAndCuring_theme";
 
 type CastingCuringSchemaPanelProps = {
@@ -16,9 +17,11 @@ type CastingCuringSchemaPanelProps = {
   savedSections?: SchemaSectionSubmission[];
   subDepartmentId?: number;
   batchId?: string;
+  setupContext?: SchemaSetupContext;
   onChange: (values: SchemaFormValues) => void;
   loading?: boolean;
   error?: string | null;
+  readOnly?: boolean;
 };
 
 const CastingCuringSchemaPanel = ({
@@ -27,9 +30,11 @@ const CastingCuringSchemaPanel = ({
   savedSections,
   subDepartmentId,
   batchId,
+  setupContext,
   onChange,
   loading = false,
   error = null,
+  readOnly = false,
 }: CastingCuringSchemaPanelProps) => {
   const hydratedRef = useRef(false);
 
@@ -42,12 +47,12 @@ const CastingCuringSchemaPanel = ({
     if (hydratedRef.current) return;
 
     if (savedSections?.length) {
-      onChange(hydrateCastingCuringValuesFromSections(schema, savedSections));
+      onChange(hydrateCastingCuringValuesFromSections(schema, savedSections, setupContext));
     } else if (Object.keys(formValues ?? {}).length === 0) {
-      onChange(createCastingCuringInitialValues(schema));
+      onChange(createCastingCuringInitialValues(schema, setupContext));
     }
     hydratedRef.current = true;
-  }, [schema, savedSections]);
+  }, [schema, savedSections, setupContext]);
 
   const themeTokens = useMemo(
     () => ({
@@ -71,8 +76,10 @@ const CastingCuringSchemaPanel = ({
         onChange={onChange}
         loading={loading}
         error={error}
+        readOnly={readOnly}
         themeTokens={themeTokens}
         apiContext={{ subDepartmentId, batchId }}
+        setupContext={setupContext}
       />
     </Box>
   );

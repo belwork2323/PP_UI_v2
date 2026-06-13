@@ -169,6 +169,8 @@ All schema endpoints must return `data.nodes[]`. The UI normalizer accepts PP-Sc
 
 Document-level `data.designSystem` overrides app defaults. Child nodes may override individual tokens in their `style` block.
 
+`designSystem.radius` defines pixel values for corner-radius tokens (`sm`, `md`, `lg`) used by section cards. See [§5](#5-style-block-css--design-tokens) and [§6](#6-layout-block) for how global and per-section radius settings combine.
+
 ### `data.meta`
 
 ```json
@@ -212,7 +214,28 @@ Every UI element is a node:
   "validation": { "min": 0, "max": 200 },
   "visibility": { "when": [{ "field": "STATION", "op": "NOT_EMPTY" }], "logic": "AND" },
   "dataSource": null,
+  "defaultValue": null,
+  "defaultValues": [],
   "children": []
+}
+```
+
+**Static activity column example:**
+
+```json
+{
+  "id": "ACTIVITY",
+  "component": "column",
+  "fieldType": "static",
+  "label": "Activity",
+  "defaultValues": [
+    "Soaking Time",
+    "Time of removal from pit",
+    "Fixtures assembled for curing",
+    "Pressure sensor details (If applicable)",
+    "Initial pressure reading (If applicable)",
+    "Time of dispatch to curing station"
+  ]
 }
 ```
 
@@ -232,6 +255,8 @@ Every UI element is a node:
 | `validation` | No | Min, max, pattern ([§10](#10-validation)). |
 | `visibility` | No | Conditional show/hide ([§9](#9-visibility-rules)). |
 | `dataSource` | No | Static or API dropdown options ([§8](#8-datasource-dropdowns)). |
+| `defaultValue` | No | Single default for a `field` or `column`. Applied to all rows (tables) or the field value (forms). |
+| `defaultValues` | No | **Column only.** Array of per-row defaults. Index `i` seeds row `i` in the column. Length should match `behavior.table.defaultRows` or `presetRows` count. |
 | `children` | No | Nested nodes (sections, columns, groups). |
 | `groupKey` | No | For `nestedGroup`: `"lots"` or `"drums"`. |
 
@@ -258,6 +283,9 @@ Every UI element is a node:
 | `formula` | Read-only computed | auto-calculated `string` |
 | `autoIncrement` | Read-only serial number | number (key: `srNo`) |
 | `dynamic` | Type resolved per table row | see row `fieldType` |
+| `static` | Read-only display (no input) | preset string from `defaultValue` / `defaultValues[rowIndex]` |
+
+> **`fieldType: "static"`** renders a read-only label cell. This is unrelated to **`dataSource.type: "static"`** ([§8](#8-datasource-dropdowns)), which provides dropdown option lists only.
 
 ### 4.2 Container primitives
 
@@ -275,7 +303,7 @@ Every UI element is a node:
 | `table` | Editable data table. `children` are `column` and `columnGroup` nodes. |
 | `column` | Single table column definition. |
 | `columnGroup` | Grouped table header with nested `column` children. |
-| `repeatable` | Repeatable block (cycles). Contains one `table` child. `behavior.repeat.mode: "cycle"`. |
+| `repeatable` | Repeatable block (cycles). Contains one `table` child. `behavior.repeat.mode`: `cycle`, `mix`, etc. |
 | `dynamicGroup` | Repeatable flat field rows. `behavior.repeat.mode: "group"`. |
 | `nestedGroup` | Lots/drums-style grouped fields with `groupKey`. |
 
@@ -308,8 +336,12 @@ section
         ├── columnGroup
         │     ├── column (number)
         │     └── column (number)
-        └── column (formula)
+        ├── column (number)          ← standalone column between groups is allowed
+        └── columnGroup
+              └── column (formula)
 ```
+
+`column` and `columnGroup` children render in **schema `children` order**. A standalone `column` between groups (e.g. Bellow thickness between Difference C and Mandrel lift E) appears at that position — not pulled before all groups.
 
 **Repeatable curing cycles:**
 ```
@@ -326,6 +358,55 @@ section
 section
   ├── field (config fields)
   └── table (measurement rows)
+```
+
+**Repeatable + sibling table (Casting Section B):**
+```
+section [CASTING_PROCESS]
+  ├── repeatable [FINAL_MIX_DETAILS]   behavior.repeat.mode: "mix"
+  │     └── table [BOWL_DETAILS]
+  └── table [CASTING_FROM_BOWL_DETAILS]
+```
+
+Both children render as separate sections inside the same accordion panel. The repeatable does **not** suppress sibling tables.
+
+**Repeatable with mix count from context:**
+```json
+"behavior": {
+  "repeat": {
+    "enabled": true,
+    "mode": "mix",
+    "defaultCount": "{{finalMixCount}}",
+    "min": "{{finalMixCount}}",
+    "max": "{{finalMixCount}}",
+    "allowAdd": false,
+    "allowDelete": false,
+    "labelPattern": "Final Mix {index}"
+  }
+}
+```
+
+`defaultCount`, `min`, and `max` accept `{{token}}` placeholders resolved from form setup context at load time. Supported tokens: `finalMixCount`, `motorId`, `castingType`, `castingStation`.
+
+**Fixed exact count:** set `min`, `max`, and `defaultCount` to the same token or number, and set `allowAdd` / `allowDelete` to `false`. The renderer hides add/remove controls when `min === max` after resolution.
+
+**Static activity column table (Casting Section D):**
+```
+section [POST_CAST_OPERATIONS]
+  └── table [POST_CAST_TABLE]
+        ├── column [ACTIVITY]     fieldType: static, defaultValues[]
+        └── column [MOTOR_ID_1]   fieldType: text (editable)
+```
+
+With table behavior:
+```json
+"behavior": {
+  "table": {
+    "defaultRows": 6,
+    "allowAddRow": false,
+    "allowDeleteRow": false
+  }
+}
 ```
 
 ---
@@ -375,7 +456,7 @@ Prefer semantic tokens. Use `style.sx` only for edge cases.
 | `background` | color token | Background fill. |
 | `border` | `boolean` | Show border. |
 | `borderColor` | color token | Border color. |
-| `borderRadius` | `sm`, `md`, `lg` | Corner radius from `designSystem.radius`. |
+| `borderRadius` | `sm`, `md`, `lg` | Corner radius token for this section card. Overrides `layout.sectionBorderRadius`. Resolved via `designSystem.radius`. Use `sx.borderRadius` for raw px values. |
 | `shadow` | `none`, `sm` | Box shadow. |
 | `padding` | spacing token | Internal padding. |
 | `gap` | spacing token | Gap between children. |
@@ -396,6 +477,7 @@ Prefer semantic tokens. Use `style.sx` only for edge cases.
 2. Icons must be valid [Material Icons](https://mui.com/material-ui/material-icons/) names.
 3. Label styling inherits `designSystem.typography.label` unless overridden per node.
 4. Table column `style.width` sets column min-width in the table header.
+5. Set section card corner radius globally with `layout.sectionBorderRadius`; override on individual `section` nodes with `style.borderRadius` when needed.
 
 ---
 
@@ -407,16 +489,101 @@ Prefer semantic tokens. Use `style.sx` only for edge cases.
 {
   "type": "flat",
   "gap": "md",
-  "sectionVariant": "card"
+  "sectionVariant": "card",
+  "sectionBorderRadius": "sm"
 }
 ```
+
+Accordion example:
+
+```json
+{
+  "type": "accordion",
+  "gap": "md",
+  "sectionVariant": "card",
+  "sectionBorderRadius": "sm",
+  "accordionConfig": {
+    "defaultExpanded": true,
+    "allowMultipleExpanded": true,
+    "expandIcon": "expand_more"
+  }
+}
+```
+
+### Page-level layout properties
+
+| Property | Values | Default | Description |
+|----------|--------|---------|-------------|
+| `type` | `flat`, `tabs`, `accordion`, `wizard` | `flat` | Page layout mode (see [layout types](#layouttype-behavior) below). |
+| `gap` | spacing token | `md` | Vertical gap between section cards / accordion panels. |
+| `sectionVariant` | `card`, `plain`, `outlined` | `card` | Default container style for all section cards. Overridden by node `style.variant`. |
+| `sectionBorderRadius` | `sm`, `md`, `lg` | `md` | Default corner-radius token for all section cards. Overridden by node `style.borderRadius`. |
+| `accordionConfig` | object | — | Accordion behaviour when `type` is `accordion` ([§6](#layoutaccordionconfig-when-type-is-accordion)). |
+
+#### `layout.type` behavior
 
 | `layout.type` | Behavior |
 |---------------|----------|
 | `flat` | Vertical stack of section cards (current default). |
 | `tabs` | Each top-level `section` node becomes a tab. *Future.* |
-| `accordion` | Collapsible section panels. *Future.* |
+| `accordion` | Collapsible panels — one panel per top-level `section` node (children grouped inside). |
 | `wizard` | Step-by-step sections. *Future.* |
+
+### Section card corner radius
+
+Section cards (flat layout boxes and accordion panels) share one radius resolution chain:
+
+```
+style.borderRadius  →  layout.sectionBorderRadius  →  "md"
+```
+
+The winning token is then looked up in `designSystem.radius`. Built-in fallbacks when `designSystem.radius` is omitted: `sm` = 7px, `md` = 11px, `lg` = 16px.
+
+**Global default** — set once on `data.layout`:
+
+```json
+"layout": {
+  "type": "accordion",
+  "sectionVariant": "card",
+  "sectionBorderRadius": "sm"
+},
+"designSystem": {
+  "radius": { "sm": 4, "md": 6, "lg": 8 }
+}
+```
+
+All section cards render with the `sm` token (4px in this example).
+
+**Per-section override** — on a `section` node:
+
+```json
+{
+  "id": "CASTING_PROCESS",
+  "component": "section",
+  "label": "Section B: Casting Process",
+  "style": {
+    "variant": "card",
+    "padding": "md",
+    "borderRadius": "lg"
+  },
+  "children": [ ]
+}
+```
+
+Only this section uses `lg`; all others keep the layout default.
+
+**Accordion layout:** the outer accordion panel uses the parent `section` node's `style` (including `borderRadius`). When a `section` node is flattened into multiple child blocks inside one panel, the parent's `style` is preserved as the panel card style. Inner grouped sub-cards inside a panel also follow the same resolution chain.
+
+**Raw pixel override:** use `style.sx` on a section node (e.g. `"sx": { "borderRadius": 4 }`). `sx` wins over token resolution.
+
+### `layout.accordionConfig` (when `type` is `accordion`)
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `defaultExpanded` | boolean | `true` | Expand all panels on first render when `true`. |
+| `allowMultipleExpanded` | boolean | `true` | Allow more than one panel open at once. |
+| `expandIcon` | string | `expand_more` | Material icon name for the expand chevron. |
+| `collapseIcon` | string | — | Optional icon when expanded. *Future.* |
 
 ### Node-level (`layout` on SchemaNode)
 
@@ -485,9 +652,9 @@ Prefer semantic tokens. Use `style.sx` only for edge cases.
 | Property | Description |
 |----------|-------------|
 | `enabled` | Enable repeatable behavior. |
-| `mode` | `cycle` (repeatable-table), `row` (table add-row), `group` (dynamic-group). |
-| `min` / `max` | Minimum / maximum instances. |
-| `defaultCount` | Initial instance count. |
+| `mode` | `cycle` (repeatable-table), `row` (table add-row), `group` (dynamic-group), `mix` (repeatable final-mix / bowl cycles). |
+| `min` / `max` | Minimum / maximum instances. Accept numbers or `{{token}}` placeholders (e.g. `{{finalMixCount}}`). When resolved `min === max`, add/remove controls are hidden regardless of `allowAdd` / `allowDelete`. |
+| `defaultCount` | Initial instance count. Accepts numbers or `{{token}}` placeholders (e.g. `{{finalMixCount}}`). |
 | `allowAdd` / `allowDelete` | Show add/remove controls. |
 | `labelPattern` | Instance label. `{index}` is 1-based. |
 | `addLabel` / `deleteLabel` | Button labels. |
@@ -501,6 +668,14 @@ Prefer semantic tokens. Use `style.sx` only for edge cases.
 | `allowAddRow` / `allowDeleteRow` | Row add/delete controls. |
 | `allowAddColumn` / `allowDeleteColumn` | Column add/delete. *Spec only; renderer future.* |
 | `autoIncrementKey` | Serial number field key (default `srNo`). |
+| `presetRows` | Row templates with preset cell values. Alternative to column `defaultValues` for complex multi-column preset rows. |
+
+**Column `defaultValues` vs `presetRows`:**
+
+| Approach | When to use |
+|----------|-------------|
+| `defaultValues` on a `static` column | Simple per-row labels in one column (e.g. Activity list) |
+| `behavior.table.presetRows` | Multi-column preset rows, header rows, or `readonly: true` row flags |
 
 ### `behavior.formula`
 
@@ -527,14 +702,17 @@ For read-only label rows inside tables, include in `behavior.table.presetRows`:
 | Row property | Effect |
 |--------------|--------|
 | `type: "header"` | Full-width section header row. |
-| `readonly: true` | Cells in `value` / `parameter` columns are display-only. |
+| `readonly: true` | Cells in columns with `fieldType: "static"` or `behavior.readonly: true` are display-only. |
 | `fieldType` on row | Used when column `fieldType` is `dynamic`. |
+| `fieldType: "static"` on column | Always display-only; value from `defaultValues[rowIndex]` or `defaultValue`. |
 
 ---
 
 ## 8. DataSource (dropdowns)
 
 ### Static options
+
+> **Note:** `dataSource.type: "static"` provides dropdown **options**. It is unrelated to `fieldType: "static"`, which renders a read-only label cell ([§4.1](#41-field-primitives)).
 
 ```json
 {
@@ -689,6 +867,8 @@ Values are keyed by node `id`:
 | `dynamicGroup` | `{ [nodeId]: [ row, row, ... ] }` |
 | `nestedGroup` | `{ [nodeId]: [ groupRow, ... ] }` |
 
+**Static column values:** `static` column values are stored in each row under the column `id` key (e.g. `ACTIVITY: "Soaking Time"`). Values are seeded from `defaultValues` on init and remain readonly in the UI. User-editable sibling columns (e.g. `MOTOR_ID_1`) are stored normally.
+
 ### Submission payload
 
 ```json
@@ -804,6 +984,7 @@ Full JSON examples are in `docs/examples/`:
 |------|-------------|
 | [`curing-schema.v1.json`](examples/curing-schema.v1.json) | Curing cycles (repeatable table), post-curing fields, de-coring with API dropdown |
 | [`casting-measurements.v1.json`](examples/casting-measurements.v1.json) | Grouped-column measurement table with formula columns |
+| [`casting-form.v1.json`](examples/casting-form.v1.json) | Full casting form: accordion layout, repeatable mix cycles + sibling bowl table, static activity column |
 | [`case-prep-form.v1.json`](examples/case-prep-form.v1.json) | Form section, dynamic group, nested group |
 
 ---
@@ -838,6 +1019,7 @@ Historical reference for backend migration. The UI normalizer no longer accepts 
 | `fields[]` | `children[]` with `component: "field"` |
 | `columns[]` | `children[]` with `component: "column"` |
 | `groupedColumns[]` | `children[]` with `component: "columnGroup"` |
+| `columnLayout[]` | Ordered `column` / `columnGroup` slots preserving `children` order |
 | `lots` / `drums` | `component: "nestedGroup"`, `groupKey: "lots"` \| `"drums"` |
 | `table: { columns, defaultRows }` | `component: "table"` child on `section` |
 | `repeatable: true` + `tables[]` | `component: "repeatable"` |
@@ -952,3 +1134,5 @@ badge         →  Chip (new)
 |---------|------|---------|
 | 1.0 | 2026-06-12 | Initial PP-Schema UI Standard specification |
 | 1.0.1 | 2026-06-12 | All schema payloads nested under `data` (`layout`, `designSystem`, `meta`, `context`, `nodes`) |
+| 1.0.2 | 2026-06-13 | `layout.sectionBorderRadius` global default; per-section `style.borderRadius` override; accordion panels inherit parent `section` style |
+| 1.0.3 | 2026-06-13 | `fieldType: static`, column `defaultValue`/`defaultValues`, sibling `repeatable`+`table` flattening, `behavior.repeat.mode: mix` |

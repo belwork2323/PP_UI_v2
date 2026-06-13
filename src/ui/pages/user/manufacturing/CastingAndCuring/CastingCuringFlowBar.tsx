@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, CircularProgress } from "@mui/material";
+import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
-import { Typography } from "@mui/material";
 import { fetchCastingStationsApi } from "../../../../../data/api/users/operationsApi";
 import {
   CASTING_CURING_FLOW_LABELS,
   CASTING_TYPE_OPTIONS,
-  canStartCastingCuringForm,
+  FALLBACK_CASTING_STATION_OPTIONS,
+  canLoadCastingForm,
   getCastingMotorCountOptions,
   resolveCastingMotorCount,
   type CastingCuringMotorOption,
+  type CastingProcessSetupDraft,
 } from "../../../../../hooks/user/manufacturing/castingCuringFlowConfig";
 import CasePrepSelect from "../CasePreparation/CasePrepSelect";
 
@@ -22,15 +23,17 @@ type CastingCuringFlowBarProps = {
   motorCount: number | "";
   draftMotorIds: string[];
   motorReceivedAt: string;
+  setup: CastingProcessSetupDraft;
   availableMotorOptions: CastingCuringMotorOption[];
   usedMotorIds: string[];
-  schemasReady: boolean;
+  castingFormLoaded: boolean;
   onCastingTypeChange: (value: string) => void;
   onCastingStationChange: (value: string) => void;
   onMotorCountChange: (count: number | "") => void;
   onDraftMotorIdChange: (index: number, motorId: string) => void;
   onMotorReceivedAtChange: (value: string) => void;
-  onStartForm: () => void;
+  onSetupChange: (field: keyof CastingProcessSetupDraft, value: string) => void;
+  onLoadCastingForm: () => void;
   schemaLoading?: boolean;
   theme: any;
 };
@@ -41,19 +44,22 @@ const CastingCuringFlowBar = ({
   motorCount,
   draftMotorIds,
   motorReceivedAt,
+  setup,
   availableMotorOptions,
   usedMotorIds,
-  schemasReady,
+  castingFormLoaded,
   onCastingTypeChange,
   onCastingStationChange,
   onMotorCountChange,
   onDraftMotorIdChange,
   onMotorReceivedAtChange,
-  onStartForm,
+  onSetupChange,
+  onLoadCastingForm,
   schemaLoading = false,
   theme,
 }: CastingCuringFlowBarProps) => {
   const flowBar = theme.manufacturing?.casePreparation?.flowBar ?? {};
+  const L = CASTING_CURING_FLOW_LABELS;
   const [stationOptions, setStationOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
@@ -61,13 +67,14 @@ const CastingCuringFlowBar = ({
     void fetchCastingStationsApi().then((response: any) => {
       if (!active) return;
       const list = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
-      setStationOptions(
-        list.map((item: Record<string, unknown>) => {
+      const mapped = list
+        .map((item: Record<string, unknown>) => {
           const value = String(item.stationCode ?? item.stationId ?? item.stationName ?? item.code ?? "");
           const label = String(item.stationName ?? item.stationCode ?? value);
           return { value, label };
-        }).filter((item) => item.value),
-      );
+        })
+        .filter((item) => item.value);
+      setStationOptions(mapped.length > 0 ? mapped : [...FALLBACK_CASTING_STATION_OPTIONS]);
     });
     return () => {
       active = false;
@@ -78,27 +85,30 @@ const CastingCuringFlowBar = ({
   const showCustomMotorCount = String(castingType).toLowerCase() === "others";
   const showMotorFields = resolvedMotorCount > 0 && availableMotorOptions.length > 0;
   const motorCountOptions = getCastingMotorCountOptions(availableMotorOptions);
+  const setupFieldsEnabled = Boolean(castingType && castingStation);
 
-  const canStart = useMemo(
+  const canLoad = useMemo(
     () =>
-      canStartCastingCuringForm({
+      canLoadCastingForm({
         castingType,
         castingStation,
         motorCount,
         draftMotorIds,
         motorReceivedAt,
         usedMotorIds,
-        schemasReady,
         availableMotorOptions,
+        setup,
+        castingFormLoaded,
       }),
     [
       availableMotorOptions,
+      castingFormLoaded,
       castingStation,
       castingType,
       draftMotorIds,
       motorCount,
       motorReceivedAt,
-      schemasReady,
+      setup,
       usedMotorIds,
     ],
   );
@@ -111,14 +121,43 @@ const CastingCuringFlowBar = ({
     }));
   };
 
+  const renderSetupInput = (
+    label: string,
+    placeholder: string,
+    value: string,
+    field: keyof CastingProcessSetupDraft,
+    width: number | string = 220,
+  ) => (
+    <Box sx={flowBar.selectField?.(width)}>
+      <Typography component="label" sx={flowBar.selectLabel}>
+        {label}
+      </Typography>
+      <TextField
+        size="small"
+        fullWidth
+        value={value}
+        disabled={!setupFieldsEnabled}
+        placeholder={placeholder}
+        onChange={(event) => onSetupChange(field, event.target.value)}
+        sx={flowBar.selectInput?.(Boolean(String(value ?? "").trim()))}
+        inputProps={{ inputMode: "decimal" }}
+      />
+    </Box>
+  );
+
+  if (castingFormLoaded) return null;
+
   return (
     <Box sx={flowBar.container}>
+      <Typography sx={{ fontSize: "0.84rem", fontWeight: 800, color: theme.palette.primary, mb: 1.5 }}>
+        {L.castingProcessTitle}
+      </Typography>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={flowBar.topRow}>
           <CasePrepSelect
-            label={CASTING_CURING_FLOW_LABELS.castingType}
+            label={L.castingType}
             value={castingType}
-            placeholder={CASTING_CURING_FLOW_LABELS.castingTypePlaceholder}
+            placeholder={L.castingTypePlaceholder}
             options={CASTING_TYPE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
             width={200}
             theme={theme}
@@ -126,9 +165,9 @@ const CastingCuringFlowBar = ({
           />
 
           <CasePrepSelect
-            label={CASTING_CURING_FLOW_LABELS.castingStation}
+            label={L.castingStation}
             value={castingStation}
-            placeholder={CASTING_CURING_FLOW_LABELS.castingStationPlaceholder}
+            placeholder={L.castingStationPlaceholder}
             options={stationOptions}
             width={200}
             theme={theme}
@@ -137,9 +176,9 @@ const CastingCuringFlowBar = ({
 
           {showCustomMotorCount ? (
             <CasePrepSelect
-              label={CASTING_CURING_FLOW_LABELS.motorCount}
+              label={L.motorCount}
               value={motorCount === "" ? "" : String(motorCount)}
-              placeholder={CASTING_CURING_FLOW_LABELS.motorCountPlaceholder}
+              placeholder={L.motorCountPlaceholder}
               options={motorCountOptions}
               width={200}
               theme={theme}
@@ -147,22 +186,40 @@ const CastingCuringFlowBar = ({
             />
           ) : null}
 
+          {showMotorFields ? (
+            <>
+              {Array.from({ length: resolvedMotorCount }, (_, idx) => (
+                <CasePrepSelect
+                  key={`cc-motor-slot-${idx}`}
+                  label={`${L.motorId} ${resolvedMotorCount > 1 ? idx + 1 : ""}`.trim()}
+                  value={draftMotorIds[idx] ?? ""}
+                  placeholder={L.motorIdPlaceholder}
+                  options={getMotorOptionsForSlot(idx)}
+                  width={220}
+                  theme={theme}
+                  disabled={!setupFieldsEnabled}
+                  onChange={(value) => onDraftMotorIdChange(idx, value)}
+                />
+              ))}
+            </>
+          ) : null}
+
           <Box sx={flowBar.selectField?.(260)}>
             <Typography component="label" sx={flowBar.selectLabel}>
-              {CASTING_CURING_FLOW_LABELS.motorReceivedAt}
+              {L.motorReceivedAt}
             </Typography>
             <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-gb">
               <DateTimePicker
                 enableAccessibleFieldDOMStructure={false}
                 format="DD-MM-YYYY HH:mm"
-                disabled={!castingType || !castingStation}
+                disabled={!setupFieldsEnabled}
                 value={motorReceivedAt ? dayjs(motorReceivedAt, "DD-MM-YYYY HH:mm") : null}
                 onChange={(picked) => onMotorReceivedAtChange(picked?.format("DD-MM-YYYY HH:mm") || "")}
                 slotProps={{
                   textField: {
                     size: "small",
                     fullWidth: true,
-                    placeholder: CASTING_CURING_FLOW_LABELS.motorReceivedAtPlaceholder,
+                    placeholder: L.motorReceivedAtPlaceholder,
                     sx: flowBar.selectInput?.(Boolean(motorReceivedAt)),
                   },
                 }}
@@ -171,49 +228,44 @@ const CastingCuringFlowBar = ({
           </Box>
         </Box>
 
-        {showMotorFields ? (
-          <Box sx={flowBar.motorSelectorBox}>
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                flexWrap: "wrap",
-                gap: 2,
-                alignItems: { sm: "flex-end" },
-                mb: 1.25,
-              }}
-            >
-              {Array.from({ length: resolvedMotorCount }, (_, idx) => (
-                <CasePrepSelect
-                  key={`cc-motor-slot-${idx}`}
-                  label={`${CASTING_CURING_FLOW_LABELS.motorId} ${resolvedMotorCount > 1 ? idx + 1 : ""}`.trim()}
-                  value={draftMotorIds[idx] ?? ""}
-                  placeholder={CASTING_CURING_FLOW_LABELS.motorIdPlaceholder}
-                  options={getMotorOptionsForSlot(idx)}
-                  width={280}
-                  theme={theme}
-                  onChange={(value) => onDraftMotorIdChange(idx, value)}
-                />
-              ))}
-            </Box>
-          </Box>
-        ) : null}
+        <Box sx={flowBar.topRow}>
+          {renderSetupInput(
+            L.initialVacuum,
+            L.initialVacuumPlaceholder,
+            setup.initialVacuum,
+            "initialVacuum",
+          )}
+          {renderSetupInput(
+            L.castingVacuumPressure,
+            L.castingVacuumPressurePlaceholder,
+            setup.castingVacuumPressure,
+            "castingVacuumPressure",
+          )}
+          {renderSetupInput(
+            L.soakingVacuumPressure,
+            L.soakingVacuumPressurePlaceholder,
+            setup.soakingVacuumPressure,
+            "soakingVacuumPressure",
+          )}
+          {renderSetupInput(
+            L.finalMixCount,
+            L.finalMixCountPlaceholder,
+            setup.finalMixCount,
+            "finalMixCount",
+          )}
+        </Box>
 
-        {!schemasReady ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={onStartForm}
-              disabled={!canStart || schemaLoading}
-              startIcon={schemaLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
-            >
-              {schemaLoading
-                ? CASTING_CURING_FLOW_LABELS.schemaLoading
-                : CASTING_CURING_FLOW_LABELS.startForm}
-            </Button>
-          </Box>
-        ) : null}
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={onLoadCastingForm}
+            disabled={!canLoad || schemaLoading}
+            startIcon={schemaLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
+          >
+            {schemaLoading ? L.schemaLoading : L.loadCastingForm}
+          </Button>
+        </Box>
       </Box>
     </Box>
   );

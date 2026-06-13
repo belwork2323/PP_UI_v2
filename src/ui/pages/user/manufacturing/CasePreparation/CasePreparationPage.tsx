@@ -6,6 +6,7 @@ import ConfirmAlertDialog from "../../../../components/common/ConfirmAlertDialog
 import CasePrepList from "./CasePreparationList";
 import CasePreparationForm from "./CasePreparationForm";
 import CasePreparationHeader from "./CasePreparationHeader";
+import CasePreparationDetailsView from "./CasePreparationDetailsView";
 import { useThemeStore } from "../../../../../app/store/themeStore";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
 import useCasePreparationHook from "../../../../../hooks/user/manufacturing/useCasePreparationWorkflowHook";
@@ -35,6 +36,11 @@ const CasePreparationPage = () => {
     actionLoading,
     backConfirmOpen,
     setBackConfirmOpen,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewCasePrepDetails,
+    handleBackFromDetails,
     handleBack,
     handleDiscardAndBack,
     handleMotorCountChange,
@@ -59,6 +65,15 @@ const CasePreparationPage = () => {
   return (
     <Box sx={theme.workflow.animatedContainer}>
       {view === "list" && <CasePrepList hookState={hookState} />}
+
+      {view === "details" && detailsRow && (
+        <CasePreparationDetailsView
+          row={detailsRow}
+          data={detailsData}
+          loading={detailsLoading}
+          onBack={handleBackFromDetails}
+        />
+      )}
 
       {view === "form" && activeBatch && (
         <>

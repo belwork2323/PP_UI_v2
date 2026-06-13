@@ -13,6 +13,7 @@ export type SchemaUIProps = {
   error?: string | null;
   themeTokens?: Partial<SchemaThemeTokens>;
   apiContext?: SchemaApiContext;
+  setupContext?: import("../utils/schemaSetupContext").SchemaSetupContext;
 };
 
 const SchemaUI = ({
@@ -24,6 +25,7 @@ const SchemaUI = ({
   error = null,
   themeTokens,
   apiContext,
+  setupContext,
 }: SchemaUIProps) => {
   const theme = mergeSchemaTheme(resolveTheme(themeTokens), schema?.designSystem, themeTokens);
 
@@ -59,6 +61,7 @@ const SchemaUI = ({
       readOnly={readOnly}
       theme={theme}
       apiContext={apiContext}
+      setupContext={setupContext}
     />
   );
 };

@@ -10,6 +10,7 @@ import type {
   SchemaFormValues,
   SchemaSectionSubmission,
 } from "../models/schema.types";
+import type { SchemaSetupContext } from "../utils/schemaSetupContext";
 export const CC_CASTING_SCHEMA_FUNCTIONALITY = "CREATE_CASTING_FORM";
 export const CC_CURING_SCHEMA_FUNCTIONALITY = "CREATE_CURING_FORM";
 export const CC_SCHEMA_VERSION = "1.0";
@@ -38,13 +39,16 @@ export const buildCastingCuringSchemaRequest = (params: {
       : CC_CURING_SCHEMA_FUNCTIONALITY,
 });
 
-export const createCastingCuringInitialValues = (schema: SchemaDocument) =>
-  buildInitialSectionValues(schema.sections);
+export const createCastingCuringInitialValues = (
+  schema: SchemaDocument,
+  setupContext?: SchemaSetupContext,
+) => buildInitialSectionValues(schema.sections, setupContext);
 
 export const hydrateCastingCuringValuesFromSections = (
   schema: SchemaDocument,
   sections: SchemaSectionSubmission[],
-): SchemaFormValues => mergeSectionDataIntoValues(schema.sections, sections);
+  setupContext?: SchemaSetupContext,
+): SchemaFormValues => mergeSectionDataIntoValues(schema.sections, sections, setupContext);
 
 export const buildCastingCuringSectionPayload = (
   schema: SchemaDocument,

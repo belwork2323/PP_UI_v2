@@ -36,6 +36,7 @@ export type SchemaFieldTypeV1 =
   | "formula"
   | "autoIncrement"
   | "dynamic"
+  | "static"
   | string;
 
 export type SchemaSpacingToken = "xs" | "sm" | "md" | "lg" | "xl" | string;
@@ -66,6 +67,13 @@ export type SchemaNodeStyle = {
   sx?: Record<string, unknown>;
 };
 
+export type SchemaAccordionConfig = {
+  defaultExpanded?: boolean;
+  allowMultipleExpanded?: boolean;
+  expandIcon?: string;
+  collapseIcon?: string;
+};
+
 export type SchemaNodeLayout = {
   type?: "flat" | "tabs" | "accordion" | "wizard" | string;
   direction?: "row" | "column";
@@ -77,14 +85,17 @@ export type SchemaNodeLayout = {
   order?: number;
   sticky?: boolean;
   sectionVariant?: string;
+  /** Default corner radius token for all section cards; overridden by node `style.borderRadius`. */
+  sectionBorderRadius?: SchemaSpacingToken;
+  accordionConfig?: SchemaAccordionConfig;
 };
 
 export type SchemaRepeatBehavior = {
   enabled?: boolean;
-  mode?: "cycle" | "row" | "group";
+  mode?: "cycle" | "row" | "group" | "mix";
   min?: number;
   max?: number;
-  defaultCount?: number;
+  defaultCount?: number | string;
   allowAdd?: boolean;
   allowDelete?: boolean;
   labelPattern?: string;
@@ -154,6 +165,8 @@ export type SchemaNode = {
   label?: string;
   unit?: string;
   required?: boolean;
+  defaultValue?: unknown;
+  defaultValues?: unknown[];
   groupKey?: string;
   group?: string;
   style?: SchemaNodeStyle;

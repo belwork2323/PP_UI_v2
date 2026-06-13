@@ -57,6 +57,8 @@ export type SchemaField = {
   unit?: string;
   required?: boolean;
   readonly?: boolean;
+  defaultValue?: unknown;
+  defaultValues?: unknown[];
   visibleWhen?: SchemaVisibilityRule;
   group?: string;
   options?: SchemaFieldOption[];
@@ -77,6 +79,8 @@ export type SchemaColumn = {
   label: string;
   type: SchemaFieldType;
   readonly?: boolean;
+  defaultValue?: unknown;
+  defaultValues?: unknown[];
   unit?: string;
   width?: string;
   multiple?: boolean;
@@ -94,6 +98,10 @@ export type SchemaGroupedColumn = {
   columns?: SchemaColumn[];
 };
 
+export type SchemaTableColumnSlot =
+  | { kind: "column"; column: SchemaColumn }
+  | { kind: "group"; group: SchemaGroupedColumn };
+
 export type SchemaNestedGroup = {
   fields: SchemaField[];
 };
@@ -109,6 +117,9 @@ export type SchemaRepeatConfig = {
   labelPattern?: string;
   allowAdd?: boolean;
   allowDelete?: boolean;
+  defaultCount?: number | string;
+  minCycles?: number | string;
+  maxCycles?: number | string;
 };
 
 export type SchemaNodeStyleRef = {
@@ -125,6 +136,13 @@ export type SchemaNodeStyleRef = {
   [key: string]: unknown;
 };
 
+export type SchemaAccordionConfigRef = {
+  defaultExpanded?: boolean;
+  allowMultipleExpanded?: boolean;
+  expandIcon?: string;
+  collapseIcon?: string;
+};
+
 export type SchemaNodeLayoutRef = {
   type?: string;
   direction?: string;
@@ -133,6 +151,8 @@ export type SchemaNodeLayoutRef = {
   alignItems?: string;
   justifyContent?: string;
   sectionVariant?: string;
+  sectionBorderRadius?: string;
+  accordionConfig?: SchemaAccordionConfigRef;
   [key: string]: unknown;
 };
 
@@ -150,6 +170,7 @@ export type SchemaSection = {
   fields?: SchemaField[];
   columns?: SchemaColumn[];
   groupedColumns?: SchemaGroupedColumn[];
+  columnLayout?: SchemaTableColumnSlot[];
   defaultRows?: Record<string, unknown>[];
   sections?: SchemaSection[];
   table?: SchemaTableDefinition;
@@ -157,6 +178,12 @@ export type SchemaSection = {
   drums?: SchemaNestedGroup;
   style?: SchemaNodeStyleRef;
   layout?: SchemaNodeLayoutRef;
+  /** Top-level section node id when flattened from a `section` parent */
+  accordionGroupId?: string;
+  /** Top-level section node label for accordion panel headers */
+  accordionGroupLabel?: string;
+  /** Style from the parent `section` node when children are flattened for accordion panels */
+  accordionGroupStyle?: SchemaNodeStyleRef;
 };
 
 export type SchemaGrade = {
@@ -182,6 +209,8 @@ export type SchemaDocumentLayout = {
   type?: string;
   gap?: string;
   sectionVariant?: string;
+  sectionBorderRadius?: string;
+  accordionConfig?: SchemaAccordionConfigRef;
   [key: string]: unknown;
 };
 

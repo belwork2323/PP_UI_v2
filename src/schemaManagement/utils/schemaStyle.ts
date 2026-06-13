@@ -1,6 +1,6 @@
 import type { SxProps, Theme } from "@mui/material";
 import type { SchemaDesignSystem, SchemaNodeLayout, SchemaNodeStyle } from "../models/schema.v1.types";
-import type { SchemaSection, SchemaThemeTokens } from "../models/schema.types";
+import type { SchemaSection, SchemaNodeStyleRef, SchemaThemeTokens } from "../models/schema.types";
 import { DEFAULT_SCHEMA_THEME } from "../models/schema.types";
 
 const SPACING_FALLBACK: Record<string, number> = {
@@ -71,6 +71,20 @@ export const resolveRadiusPx = (
   return typeof resolved === "number" ? resolved : undefined;
 };
 
+type SchemaSectionCardLayout = Pick<
+  SchemaNodeLayout,
+  "gap" | "sectionVariant" | "sectionBorderRadius"
+> & {
+  gap?: string;
+  sectionVariant?: string;
+  sectionBorderRadius?: string;
+};
+
+export const resolveSectionBorderRadiusToken = (
+  style?: Pick<SchemaNodeStyle, "borderRadius"> | { borderRadius?: string },
+  layout?: SchemaSectionCardLayout,
+): string => style?.borderRadius ?? layout?.sectionBorderRadius ?? "md";
+
 export const resolveColorToken = (
   token: string | undefined,
   theme: SchemaThemeTokens,
@@ -94,14 +108,15 @@ export const resolveColorToken = (
 };
 
 export const resolveSectionCardSx = (
-  style: SchemaNodeStyle | undefined,
-  layout: SchemaNodeLayout | undefined,
+  style: SchemaNodeStyle | SchemaNodeStyleRef | undefined,
+  layout: SchemaSectionCardLayout | undefined,
   theme: SchemaThemeTokens,
   designSystem?: SchemaDesignSystem,
 ): SxProps<Theme> => {
   const padding = resolveSpacingPx(style?.padding ?? "md", designSystem) ?? 12;
   const gap = resolveSpacingPx(style?.gap ?? layout?.gap, designSystem);
-  const radius = resolveRadiusPx(style?.borderRadius ?? "md", designSystem) ?? 8;
+  const radius =
+    resolveRadiusPx(resolveSectionBorderRadiusToken(style, layout), designSystem) ?? 8;
   const borderColor = resolveColorToken(style?.borderColor ?? "border", theme, designSystem) ?? theme.border;
   const background =
     resolveColorToken(style?.background ?? "surface", theme, designSystem) ?? theme.surface;
@@ -134,7 +149,7 @@ export const resolveSectionCardSx = (
 };
 
 export const resolvePageStackSpacing = (
-  layout?: SchemaNodeLayout,
+  layout?: SchemaSectionCardLayout,
   designSystem?: SchemaDesignSystem,
 ): number => resolveSpacingPx(layout?.gap ?? "md", designSystem) ?? 16;
 

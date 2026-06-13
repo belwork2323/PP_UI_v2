@@ -221,6 +221,19 @@ const FieldRenderer = ({
     );
   }
 
+  if (field.type === "static") {
+    return (
+      <Box sx={{ minWidth: isWideLabel ? 240 : 180, flex: "1 1 180px", maxWidth: 320 }}>
+        <Typography component="label" sx={labelSx(theme)}>
+          {fieldLabel}
+        </Typography>
+        <Typography sx={{ fontSize: "0.82rem", color: theme.text, fontWeight: 600 }}>
+          {stringValue}
+        </Typography>
+      </Box>
+    );
+  }
+
   const inputType =
     field.type === "number" || field.type === "decimal" ? "number" : "text";
 

@@ -4,9 +4,14 @@
   "functionality": "CREATE_CURING_FORM",
   "data": {
     "layout": {
-      "type": "flat",
+      "type": "accordion",
       "gap": "md",
-      "sectionVariant": "card"
+      "sectionVariant": "card",
+      "accordionConfig": {
+        "defaultExpanded": true,
+        "allowMultipleExpanded": true,
+        "expandIcon": "expand_more"
+      }
     },
     "designSystem": {
       "colors": {

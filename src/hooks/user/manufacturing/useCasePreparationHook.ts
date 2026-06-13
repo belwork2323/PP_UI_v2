@@ -32,7 +32,7 @@ import {
 import { OPERATION_STATUS } from "../../operationStatus";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type CasePrepBatch = {
   batchId: string;
@@ -73,6 +73,9 @@ export const useCasePreparationHook = () => {
   const [activeBatch, setActiveBatch] = useState<CasePrepBatch | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingFormDetails, setLoadingFormDetails] = useState(false);
+  const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -240,6 +243,45 @@ export const useCasePreparationHook = () => {
     },
     [fetchCasePrepSchema, showAlert, subDepartmentId]
   );
+
+  const handleViewCasePrepDetails = useCallback(
+    async (row: CasePrepBatch) => {
+      if (!row.formId) {
+        showAlert(STRINGS.MANUFACTURING.CASE_PREP.FORM_ID_MISSING, "error");
+        return;
+      }
+      if (!subDepartmentId) {
+        showAlert(STRINGS.MANUFACTURING.CASE_PREP.SUB_DEPARTMENT_MISSING, "error");
+        return;
+      }
+
+      setDetailsLoading(true);
+      const response = await casePreparationController.fetchFormDetails({
+        formId: row.formId,
+        subDepartmentId,
+      });
+      setDetailsLoading(false);
+
+      if (!response?.success || !response?.data) {
+        showAlert(
+          response?.message || STRINGS.MANUFACTURING.CASE_PREP.DETAILS_FETCH_ERROR,
+          "error"
+        );
+        return;
+      }
+
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [showAlert, subDepartmentId]
+  );
+
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
 
   const handleFillForm = useCallback(
     async (batch: CasePrepBatch) => await openFormWithResolvedData(batch, false),
@@ -542,6 +584,11 @@ export const useCasePreparationHook = () => {
     actionLoading,
     backConfirmOpen,
     setBackConfirmOpen,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewCasePrepDetails,
+    handleBackFromDetails,
     handleFillForm,
     handleEditForm,
     handleBack,

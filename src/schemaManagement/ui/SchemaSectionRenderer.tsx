@@ -1,4 +1,5 @@
 import type { SchemaApiContext, SchemaFormValues, SchemaSection, SchemaThemeTokens } from "../models/schema.types";
+import type { SchemaSetupContext } from "../utils/schemaSetupContext";
 import { normalizeCasePrepSection } from "../utils/casePreparationSchema";
 import { buildFlatVisibilityContext, isSchemaSectionVisible } from "../utils/schemaVisibility";
 import DynamicGroupSection from "./sections/DynamicGroupSection";
@@ -18,6 +19,7 @@ type SchemaSectionRendererProps = {
   readOnly?: boolean;
   theme: SchemaThemeTokens;
   apiContext?: SchemaApiContext;
+  setupContext?: SchemaSetupContext;
   showTitle?: boolean;
 };
 
@@ -58,6 +60,7 @@ const SchemaSectionRenderer = ({
   readOnly = false,
   theme,
   apiContext,
+  setupContext,
   showTitle = true,
 }: SchemaSectionRendererProps) => {
   const resolved = resolveRenderableSection(section);
@@ -166,6 +169,7 @@ const SchemaSectionRenderer = ({
           readOnly={readOnly}
           theme={theme}
           apiContext={apiContext}
+          setupContext={setupContext}
         />
       )}
 

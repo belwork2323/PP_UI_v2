@@ -4,6 +4,7 @@ import type {
   SchemaFieldDataSource,
   SchemaGroupedColumn,
   SchemaSection,
+  SchemaTableColumnSlot,
   SchemaVisibilityRule,
 } from "../models/schema.types";
 import type {
@@ -12,6 +13,25 @@ import type {
   SchemaNodeVisibility,
   SchemaVisibilityConditionV1,
 } from "../models/schema.v1.types";
+
+type AccordionGroupContext = {
+  id: string;
+  label: string;
+  style?: SchemaNode["style"];
+};
+
+const annotateAccordionGroup = (
+  sections: SchemaSection[],
+  group?: AccordionGroupContext,
+): SchemaSection[] =>
+  group
+    ? sections.map((section) => ({
+        ...section,
+        accordionGroupId: group.id,
+        accordionGroupLabel: group.label,
+        accordionGroupStyle: group.style,
+      }))
+    : sections;
 
 const isV1Node = (item: unknown): item is SchemaNode =>
   Boolean(item && typeof item === "object" && "component" in (item as object) && "id" in (item as object));
@@ -80,7 +100,13 @@ const nodeToField = (node: SchemaNode): SchemaField => {
     type: fieldType === "autoincrement" ? "number" : fieldType,
     unit: node.unit,
     required: Boolean(node.required ?? node.validation?.required),
-    readonly: Boolean(node.behavior?.readonly) || fieldType === "autoincrement" || fieldType === "formula",
+    readonly:
+      Boolean(node.behavior?.readonly) ||
+      fieldType === "autoincrement" ||
+      fieldType === "formula" ||
+      fieldType === "static",
+    defaultValue: node.defaultValue,
+    defaultValues: Array.isArray(node.defaultValues) ? node.defaultValues : undefined,
     visibleWhen: resolveVisibility(node),
     group: node.group,
     formula: node.behavior?.formula,
@@ -88,27 +114,49 @@ const nodeToField = (node: SchemaNode): SchemaField => {
   };
 };
 
-const flattenColumns = (children: SchemaNode[] = []): {
-  columns: SchemaColumn[];
-  groupedColumns: SchemaGroupedColumn[];
-} => {
+const deriveColumnsFromLayout = (columnLayout: SchemaTableColumnSlot[]) => {
   const columns: SchemaColumn[] = [];
   const groupedColumns: SchemaGroupedColumn[] = [];
 
+  columnLayout.forEach((slot) => {
+    if (slot.kind === "column") {
+      columns.push(slot.column);
+      return;
+    }
+    groupedColumns.push(slot.group);
+  });
+
+  return { columns, groupedColumns };
+};
+
+const flattenColumns = (children: SchemaNode[] = []): {
+  columns: SchemaColumn[];
+  groupedColumns: SchemaGroupedColumn[];
+  columnLayout: SchemaTableColumnSlot[];
+} => {
+  const columnLayout: SchemaTableColumnSlot[] = [];
+
   children.forEach((child) => {
     if (child.component === "columnGroup") {
-      groupedColumns.push({
-        groupLabel: child.label,
-        columns: (child.children ?? []).map((col) => nodeToColumn(col)),
+      columnLayout.push({
+        kind: "group",
+        group: {
+          groupLabel: child.label,
+          columns: (child.children ?? []).map((col) => nodeToColumn(col)),
+        },
       });
       return;
     }
     if (child.component === "column") {
-      columns.push(nodeToColumn(child));
+      columnLayout.push({
+        kind: "column",
+        column: nodeToColumn(child),
+      });
     }
   });
 
-  return { columns, groupedColumns };
+  const { columns, groupedColumns } = deriveColumnsFromLayout(columnLayout);
+  return { columns, groupedColumns, columnLayout };
 };
 
 const nodeToColumn = (node: SchemaNode): SchemaColumn => {
@@ -122,7 +170,10 @@ const nodeToColumn = (node: SchemaNode): SchemaColumn => {
     readonly:
       Boolean(node.behavior?.readonly) ||
       fieldType === "autoincrement" ||
-      fieldType === "formula",
+      fieldType === "formula" ||
+      fieldType === "static",
+    defaultValue: node.defaultValue,
+    defaultValues: Array.isArray(node.defaultValues) ? node.defaultValues : undefined,
     width: node.style?.width,
     formula: node.behavior?.formula,
     options: ds.options,
@@ -133,7 +184,7 @@ const nodeToColumn = (node: SchemaNode): SchemaColumn => {
 };
 
 const nodeToTableSection = (node: SchemaNode, titleOverride?: string): SchemaSection => {
-  const { columns, groupedColumns } = flattenColumns(node.children);
+  const { columns, groupedColumns, columnLayout } = flattenColumns(node.children);
   const tableBehavior = node.behavior?.table;
   const defaultRows = tableBehavior?.presetRows?.length
     ? tableBehavior.presetRows.map((row) => ({ ...row }))
@@ -147,6 +198,7 @@ const nodeToTableSection = (node: SchemaNode, titleOverride?: string): SchemaSec
     type: groupedColumns.length > 0 ? "complex-table" : "table",
     columns,
     groupedColumns: groupedColumns.length > 0 ? groupedColumns : undefined,
+    columnLayout: columnLayout.length > 0 ? columnLayout : undefined,
     defaultRows,
     addRowAllowed: tableBehavior?.allowAddRow !== false,
     visibleWhen: resolveVisibility(node),
@@ -163,11 +215,10 @@ const nodeToRepeatableSection = (
   const tableChild = (node.children ?? []).find((child) => child.component === "table");
   if (!tableChild) return null;
 
-  const { columns, groupedColumns } = flattenColumns(tableChild.children);
-  const flatColumns = [
-    ...columns,
-    ...groupedColumns.flatMap((group) => group.columns ?? []),
-  ];
+  const { columns, groupedColumns, columnLayout } = flattenColumns(tableChild.children);
+  const flatColumns = columnLayout.flatMap((slot) =>
+    slot.kind === "column" ? [slot.column] : slot.group.columns ?? [],
+  );
 
   const repeat = node.behavior?.repeat;
   const tableBehavior = tableChild.behavior?.table ?? node.behavior?.table;
@@ -178,12 +229,16 @@ const nodeToRepeatableSection = (
     type: "repeatable-table",
     columns: flatColumns,
     groupedColumns: groupedColumns.length > 0 ? groupedColumns : undefined,
-    defaultRowCount: Number(tableBehavior?.defaultRows ?? repeat?.defaultCount ?? 1) || 1,
+    columnLayout: columnLayout.length > 0 ? columnLayout : undefined,
+    defaultRowCount: Number(tableBehavior?.defaultRows ?? 1) || 1,
     addRowAllowed: tableBehavior?.allowAddRow !== false,
     repeatConfig: {
       labelPattern: String(repeat?.labelPattern ?? "Cycle {index}"),
       allowAdd: repeat?.allowAdd !== false,
       allowDelete: repeat?.allowDelete !== false,
+      defaultCount: repeat?.defaultCount,
+      minCycles: repeat?.min,
+      maxCycles: repeat?.max,
     },
     visibleWhen: resolveVisibility(node),
     style: sectionStyle ?? node.style,
@@ -229,7 +284,7 @@ const nodeToFormSection = (node: SchemaNode, titleOverride?: string): SchemaSect
   layout: node.layout,
 });
 
-const flattenSectionNode = (node: SchemaNode): SchemaSection[] => {
+const flattenSectionNode = (node: SchemaNode, groupContext?: AccordionGroupContext): SchemaSection[] => {
   const children = node.children ?? [];
   const fieldChildren = children.filter((c) => c.component === "field");
   const repeatableChild = children.find((c) => c.component === "repeatable");
@@ -238,8 +293,18 @@ const flattenSectionNode = (node: SchemaNode): SchemaSection[] => {
   const nestedChild = children.find((c) => c.component === "nestedGroup");
 
   if (repeatableChild) {
-    const section = nodeToRepeatableSection(repeatableChild, node.label ?? repeatableChild.label, node.style);
-    return section ? [section] : [];
+    const sections: SchemaSection[] = [];
+    const repeatableSection = nodeToRepeatableSection(
+      repeatableChild,
+      node.label ?? repeatableChild.label,
+      node.style,
+    );
+    if (repeatableSection) sections.push(repeatableSection);
+    children.forEach((child) => {
+      if (child.component === "repeatable") return;
+      sections.push(...nodeToSections(child, groupContext));
+    });
+    return sections;
   }
 
   if (tableChild && fieldChildren.length === 0 && children.length === 1) {
@@ -275,7 +340,7 @@ const flattenSectionNode = (node: SchemaNode): SchemaSection[] => {
 
   const sections: SchemaSection[] = [];
   children.forEach((child) => {
-    sections.push(...nodeToSections(child));
+    sections.push(...nodeToSections(child, groupContext));
   });
 
   if (sections.length === 0 && fieldChildren.length > 0) {
@@ -285,32 +350,41 @@ const flattenSectionNode = (node: SchemaNode): SchemaSection[] => {
   return sections;
 };
 
-export const nodeToSections = (node: SchemaNode): SchemaSection[] => {
+export const nodeToSections = (node: SchemaNode, groupContext?: AccordionGroupContext): SchemaSection[] => {
   const component = String(node.component ?? "").toLowerCase();
 
-  if (component === "section" || component === "group") {
-    return flattenSectionNode(node);
+  if (component === "section") {
+    const sectionGroup = {
+      id: node.id,
+      label: String(node.label ?? node.id),
+      style: node.style,
+    };
+    return annotateAccordionGroup(flattenSectionNode(node, sectionGroup), sectionGroup);
+  }
+
+  if (component === "group") {
+    return annotateAccordionGroup(flattenSectionNode(node, groupContext), groupContext);
   }
 
   if (component === "table") {
-    return [nodeToTableSection(node)];
+    return annotateAccordionGroup([nodeToTableSection(node)], groupContext);
   }
 
   if (component === "repeatable") {
     const section = nodeToRepeatableSection(node);
-    return section ? [section] : [];
+    return annotateAccordionGroup(section ? [section] : [], groupContext);
   }
 
   if (component === "dynamicgroup") {
-    return [nodeToDynamicGroupSection(node)];
+    return annotateAccordionGroup([nodeToDynamicGroupSection(node)], groupContext);
   }
 
   if (component === "nestedgroup") {
-    return [nodeToNestedGroupSection(node)];
+    return annotateAccordionGroup([nodeToNestedGroupSection(node)], groupContext);
   }
 
   if (component === "field") {
-    return [nodeToFormSection({ ...node, children: [node] })];
+    return annotateAccordionGroup([nodeToFormSection({ ...node, children: [node] })], groupContext);
   }
 
   return [];

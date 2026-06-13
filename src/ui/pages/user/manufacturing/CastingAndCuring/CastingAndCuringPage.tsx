@@ -28,6 +28,7 @@ const CastingCuringPage = () => {
     motorCount,
     draftMotorIds,
     motorReceivedAt,
+    castingSetupDraft,
     addedMotors,
     schemaLoading,
     schemaError,
@@ -44,9 +45,13 @@ const CastingCuringPage = () => {
     handleMotorCountChange,
     handleDraftMotorIdChange,
     setMotorReceivedAt,
-    handleStartForm,
+    handleSetupDraftChange,
+    handleLoadCastingForm,
+    handleRemoveLoadedCastingForm,
+    handleLoadCuringForm,
+    getCuringSetupDraft,
+    handleCuringSetupDraftChange,
     handleMotorSessionChange,
-    handleCuringValuesChange,
     handleSaveDraft,
     handleSubmit,
   } = hookState;
@@ -74,6 +79,7 @@ const CastingCuringPage = () => {
             motorCount={motorCount}
             draftMotorIds={draftMotorIds}
             motorReceivedAt={motorReceivedAt}
+            castingSetupDraft={castingSetupDraft}
             addedMotors={addedMotors}
             schemaLoading={schemaLoading}
             schemaError={schemaError}
@@ -85,9 +91,13 @@ const CastingCuringPage = () => {
             onMotorCountChange={handleMotorCountChange}
             onDraftMotorIdChange={handleDraftMotorIdChange}
             onMotorReceivedAtChange={setMotorReceivedAt}
-            onStartForm={handleStartForm}
+            onSetupDraftChange={handleSetupDraftChange}
+            onLoadCastingForm={handleLoadCastingForm}
+            onRemoveLoadedCastingForm={handleRemoveLoadedCastingForm}
+            onLoadCuringForm={handleLoadCuringForm}
+            getCuringSetupDraft={getCuringSetupDraft}
+            onCuringSetupDraftChange={handleCuringSetupDraftChange}
             onMotorSessionChange={handleMotorSessionChange}
-            onCuringValuesChange={handleCuringValuesChange}
             theme={theme}
           />
 

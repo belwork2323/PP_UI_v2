@@ -1,6 +1,7 @@
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { SchemaApiContext, SchemaSection, SchemaThemeTokens } from "../../models/schema.types";
-import { cloneSchemaRow } from "../../models/schemaFormState";
+import { cloneSchemaRow, applyColumnDefaultsToRows } from "../../models/schemaFormState";
+import { resolveSchemaCountToken, type SchemaSetupContext } from "../../utils/schemaSetupContext";
 import TableSection from "./TableSection";
 
 export type RepeatableTableCycle = {
@@ -15,6 +16,7 @@ type RepeatableTableSectionProps = {
   readOnly?: boolean;
   theme: SchemaThemeTokens;
   apiContext?: SchemaApiContext;
+  setupContext?: SchemaSetupContext;
 };
 
 const buildCycleLabel = (pattern: string, index: number) =>
@@ -24,13 +26,26 @@ const buildDefaultRows = (section: SchemaSection) => {
   const count = Number(section.defaultRowCount ?? 1) || 1;
   const columns = section.columns ?? [];
 
-  return Array.from({ length: count }, (_, rowIndex) => {
+  const rows = Array.from({ length: count }, (_, rowIndex) => {
     const row: Record<string, unknown> = { srNo: rowIndex + 1 };
     columns.forEach((column) => {
-      if (column.key !== "srNo") row[column.key] = "";
+      if (column.key === "srNo") return;
+      row[column.key] = "";
     });
     return row;
   });
+
+  return applyColumnDefaultsToRows(rows, columns);
+};
+
+const buildDefaultCycles = (section: SchemaSection, setupContext?: SchemaSetupContext) => {
+  const repeatConfig = section.repeatConfig ?? {};
+  const cycleCount = resolveSchemaCountToken(repeatConfig.defaultCount ?? 1, setupContext);
+  const tableRows = buildDefaultRows(section);
+  return Array.from({ length: cycleCount }, (_, index) => ({
+    _cycleKey: `cycle-${index + 1}`,
+    rows: tableRows.map((row) => cloneSchemaRow(row)),
+  }));
 };
 
 const RepeatableTableSection = ({
@@ -40,15 +55,26 @@ const RepeatableTableSection = ({
   readOnly = false,
   theme,
   apiContext,
+  setupContext,
 }: RepeatableTableSectionProps) => {
   const repeatConfig = section.repeatConfig ?? {};
   const labelPattern = repeatConfig.labelPattern ?? "Cycle {index}";
   const allowAdd = repeatConfig.allowAdd !== false;
   const allowDelete = repeatConfig.allowDelete !== false;
+  const minCycles = resolveSchemaCountToken(
+    repeatConfig.minCycles ?? repeatConfig.defaultCount ?? 1,
+    setupContext,
+    1,
+  );
+  const maxCycles = resolveSchemaCountToken(
+    repeatConfig.maxCycles ?? repeatConfig.defaultCount ?? minCycles,
+    setupContext,
+    minCycles,
+  );
   const displayCycles =
-    cycles.length > 0
-      ? cycles
-      : [{ _cycleKey: "cycle-1", rows: buildDefaultRows(section) }];
+    cycles.length > 0 ? cycles : buildDefaultCycles(section, setupContext);
+  const canAdd = allowAdd && !readOnly && displayCycles.length < maxCycles;
+  const canDelete = allowDelete && !readOnly && displayCycles.length > minCycles;
 
   const updateCycleRows = (cycleKey: string, rows: Record<string, unknown>[]) => {
     onCyclesChange(
@@ -59,7 +85,7 @@ const RepeatableTableSection = ({
   };
 
   const addCycle = () => {
-    const nextIndex = displayCycles.length + 1;
+    if (!canAdd) return;
     onCyclesChange([
       ...displayCycles,
       {
@@ -67,11 +93,10 @@ const RepeatableTableSection = ({
         rows: buildDefaultRows(section),
       },
     ]);
-    void nextIndex;
   };
 
   const removeCycle = (cycleKey: string) => {
-    if (displayCycles.length <= 1) return;
+    if (!canDelete) return;
     onCyclesChange(displayCycles.filter((cycle) => cycle._cycleKey !== cycleKey));
   };
 
@@ -91,7 +116,7 @@ const RepeatableTableSection = ({
             <Typography sx={{ fontWeight: 700, fontSize: "0.84rem", color: theme.text }}>
               {buildCycleLabel(labelPattern, cycleIndex + 1)}
             </Typography>
-            {allowDelete && !readOnly && displayCycles.length > 1 ? (
+            {canDelete ? (
               <Button
                 size="small"
                 color="error"
@@ -119,7 +144,7 @@ const RepeatableTableSection = ({
         </Box>
       ))}
 
-      {allowAdd && !readOnly ? (
+      {canAdd ? (
         <Button
           variant="outlined"
           size="small"
