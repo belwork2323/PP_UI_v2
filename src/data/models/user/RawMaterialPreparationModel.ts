@@ -2,19 +2,19 @@ import type { MaterialsListItem } from "./MaterialsListModel";
 import type {
   PreparationPremixEntry,
   PreparationProcessEntry,
-} from "../../../schemaManagement/adapters/rawMaterialPreparation.adapter";
+} from "../../../schema-engine/adapters/rawMaterialPreparation.adapter";
 import {
   buildProcessSubmission,
   derivePremixMaterialType,
   findGradeInMaterial,
   findMaterialInList,
-} from "../../../schemaManagement/adapters/rawMaterialPreparation.adapter";
+} from "../../../schema-engine/adapters/rawMaterialPreparation.adapter";
 import type {
-  SchemaDocument,
+  SchemaDocumentV2,
   SchemaFormValues,
   SchemaSectionSubmission,
-} from "../../../schemaManagement/models/schema.types";
-import { schemaValuesHaveUserData } from "../../../schemaManagement/models/schemaFormState";
+} from "../../../schema-engine";
+import { schemaValuesHaveUserData } from "../../../schema-engine/state/formState";
 
 export type RawMaterialPreparationSubmitResponse = {
   formId: string;
@@ -150,7 +150,7 @@ export type RawMaterialPrepPremixSelection = {
 };
 
 export type RawMaterialPrepMaterialSchemaSlot = {
-  schema: SchemaDocument | null;
+  schema: SchemaDocumentV2 | null;
   schemaLoading: boolean;
   schemaError: string | null;
   formValues: SchemaFormValues;
@@ -200,7 +200,7 @@ export const createEmptyPremixSchemaSession = (): RawMaterialPrepPremixSession =
 });
 
 const buildProcessForSlot = (
-  schema: SchemaDocument | null,
+  schema: SchemaDocumentV2 | null,
   values: SchemaFormValues,
   material: MaterialsListItem | undefined,
   gradeCode: string,

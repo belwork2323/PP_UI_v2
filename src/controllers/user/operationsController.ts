@@ -6,6 +6,7 @@ import {
   fetchSolidProcessesListApi,
   fetchMotorsStageListApi,
   fetchApprovedMotorsListApi,
+  fetchMaterialLotsApi,
 } from "../../data/api/users/operationsApi";
 import { ApiResponseModel } from "../../data/models/common/ApiResponseModel";
 import {
@@ -19,6 +20,7 @@ import {
   MotorsStageListModel,
   AvailableMotorsListModel,
   SolidProcessesListModel,
+  MaterialLotsListModel,
 } from "../../data/models/user/SubdepartmentCommonModel";
 import type { SubdepartmentBatchListRequest } from "../../data/models/user/SubdepartmentBatchModel";
 
@@ -34,6 +36,10 @@ export type DimensionalParametersPayload = {
 
 export type SolidProcessesPayload = {
   materialType: string;
+};
+
+export type MaterialLotsPayload = {
+  batchId: string;
 };
 
 export const operationsController = {
@@ -149,6 +155,19 @@ export const operationsController = {
       );
     } catch (error) {
       console.error("Failed to fetch approved motors list:", error);
+      return new ApiResponseModel(error);
+    }
+  },
+
+  /** Material lots for a batch (post-cure material-lots API). */
+  fetchMaterialLots: async (payload: MaterialLotsPayload) => {
+    try {
+      const response = await fetchMaterialLotsApi(payload);
+      return new ApiResponseModel<MaterialLotsListModel>(response, (res) =>
+        MaterialLotsListModel.fromApi(res)
+      );
+    } catch (error) {
+      console.error("Failed to fetch material lots:", error);
       return new ApiResponseModel(error);
     }
   },

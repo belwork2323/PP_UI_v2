@@ -4,19 +4,21 @@ import {
   SchemaUI,
   createCastingCuringInitialValues,
   hydrateCastingCuringValuesFromSections,
-  type SchemaDocument,
+  type SchemaDocumentV2,
   type SchemaFormValues,
   type SchemaSectionSubmission,
-} from "../../../../../schemaManagement";
-import type { SchemaSetupContext } from "../../../../../schemaManagement/utils/schemaSetupContext";
+  type SchemaSetupContext,
+} from "../../../../../schema-engine";
 import { CASTING_CURING_BRAND } from "../../../../../app/theme/custom_themes/user/manufacturing/castingAndCuring_theme";
 
 type CastingCuringSchemaPanelProps = {
-  schema: SchemaDocument | null;
+  schema: SchemaDocumentV2 | null;
   formValues: SchemaFormValues;
   savedSections?: SchemaSectionSubmission[];
   subDepartmentId?: number;
   batchId?: string;
+  projectId?: string;
+  motorId?: string;
   setupContext?: SchemaSetupContext;
   onChange: (values: SchemaFormValues) => void;
   loading?: boolean;
@@ -30,6 +32,8 @@ const CastingCuringSchemaPanel = ({
   savedSections,
   subDepartmentId,
   batchId,
+  projectId,
+  motorId,
   setupContext,
   onChange,
   loading = false,
@@ -78,8 +82,10 @@ const CastingCuringSchemaPanel = ({
         error={error}
         readOnly={readOnly}
         themeTokens={themeTokens}
-        apiContext={{ subDepartmentId, batchId }}
+        apiContext={{ subDepartmentId, batchId, projectId, motorId }}
         setupContext={setupContext}
+        batch={{ batchId, projectId }}
+        motorId={motorId}
       />
     </Box>
   );

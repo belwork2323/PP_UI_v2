@@ -163,3 +163,50 @@ export class AvailableMotorsListModel {
     );
   }
 }
+
+export type MaterialLotItem = {
+  materialCode: string;
+  materialName: string;
+  lotId: string;
+  make: string;
+};
+
+export type MaterialLotsRequest = {
+  batchId: string;
+};
+
+export class MaterialLotItemModel implements MaterialLotItem {
+  materialCode: string;
+  materialName: string;
+  lotId: string;
+  make: string;
+
+  constructor(payload: Record<string, unknown>) {
+    this.materialCode = String(payload?.materialCode ?? "").trim();
+    this.materialName = String(payload?.materialName ?? "").trim();
+    this.lotId = String(payload?.lotId ?? "").trim();
+    this.make = String(payload?.make ?? "").trim();
+  }
+}
+
+export class MaterialLotsListModel {
+  batchId: string;
+  materials: MaterialLotItemModel[];
+
+  constructor(payload: { batchId?: string; materials?: MaterialLotItemModel[] }) {
+    this.batchId = payload?.batchId ?? "";
+    this.materials = payload?.materials ?? [];
+  }
+
+  static fromApi(apiResponse: { data?: unknown }): MaterialLotsListModel {
+    const data = (apiResponse?.data ?? {}) as Record<string, unknown>;
+    const materials = Array.isArray(data.materials)
+      ? data.materials.map((item) => new MaterialLotItemModel(item as Record<string, unknown>))
+      : [];
+
+    return new MaterialLotsListModel({
+      batchId: String(data.batchId ?? ""),
+      materials,
+    });
+  }
+}

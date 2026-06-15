@@ -8,7 +8,7 @@ import {
   rocketMotorCasingMockTrialSchemaFetchConfig,
   useSchemaFetch,
   type SchemaFormValues,
-} from "../../../../../../schemaManagement";
+} from "../../../../../../schema-engine";
 import type { RocketMotorCasingMockTrialSlot } from "../../../../../../data/models/user/RocketMotorCasingFormModel";
 
 type RocketMotorCasingMockTrialSchemaPanelProps = {

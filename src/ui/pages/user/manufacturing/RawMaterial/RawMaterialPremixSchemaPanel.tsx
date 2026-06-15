@@ -10,11 +10,11 @@ import {
   useSchemaFetch,
   type SchemaFormValues,
   type SchemaSectionSubmission,
-} from "../../../../../schemaManagement";
+} from "../../../../../schema-engine";
 import {
   findGradeInMaterial,
   findMaterialInList,
-} from "../../../../../schemaManagement/adapters/rawMaterialPreparation.adapter";
+} from "../../../../../schema-engine/adapters/rawMaterialPreparation.adapter";
 import type { MaterialsListItem } from "../../../../../data/models/user/MaterialsListModel";
 import type { RawMaterialPrepMaterialSchemaSlot } from "../../../../../data/models/user/RawMaterialPreparationModel";
 import { SOLID_PREP_BRAND, LIQUID_PREP_BRAND } from "../../../../../app/theme/custom_themes/user/manufacturing/rawMaterialPreparation_theme";
@@ -27,6 +27,7 @@ type RawMaterialPremixSchemaPanelProps = {
   gradeId?: number;
   materials: MaterialsListItem[];
   subDepartmentId: number;
+  batchId?: string;
   slotState: RawMaterialPrepMaterialSchemaSlot;
   savedSections?: SchemaSectionSubmission[];
   onSlotChange: (next: RawMaterialPrepMaterialSchemaSlot) => void;
@@ -40,6 +41,7 @@ const RawMaterialPremixSchemaPanel = ({
   gradeId,
   materials,
   subDepartmentId,
+  batchId,
   slotState,
   savedSections,
   onSlotChange,
@@ -149,7 +151,7 @@ const RawMaterialPremixSchemaPanel = ({
         loading={loading}
         error={error}
         themeTokens={themeTokens}
-        apiContext={{ subDepartmentId }}
+        apiContext={{ subDepartmentId, batchId }}
       />
     </Box>
   );

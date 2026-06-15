@@ -1,12 +1,17 @@
-import type { SchemaDocument, SchemaFormValues, SchemaSectionSubmission } from "../../../schemaManagement";
+import type {
+  SchemaDocumentV2,
+  SchemaFormValues,
+  SchemaSectionSubmission,
+  SchemaSetupContext,
+} from "../../../schema-engine";
 import {
   buildCastingCuringSectionPayload,
   createCastingCuringInitialValues,
   hydrateCastingCuringValuesFromSections,
-} from "../../../schemaManagement";
-import { buildCastingSetupContext } from "../../../schemaManagement/utils/schemaSetupContext";
-import type { SchemaSetupContext } from "../../../schemaManagement/utils/schemaSetupContext";
-import { schemaValuesHaveUserData } from "../../../schemaManagement/models/schemaFormState";
+  buildCastingSetupContext,
+  schemaValuesHaveUserData,
+} from "../../../schema-engine";
+import type { CuringProjectStageMatrix } from "./curingProjectStageMatrix";
 
 export type CastingProcessSetup = {
   initialVacuum: string;
@@ -30,6 +35,7 @@ export type CastingCuringMotorSession = {
   curingSetup: CuringProcessSetup;
   curingFormLoaded?: boolean;
   curingFormValues?: SchemaFormValues;
+  curingProjectStageMatrix?: CuringProjectStageMatrix;
   savedSections?: SchemaSectionSubmission[];
 };
 
@@ -39,8 +45,8 @@ export type CastingCuringFormState = {
   castingSetup: CastingProcessSetup;
   castingFormLoaded: boolean;
   readyForCuring: boolean;
-  castingSchema: SchemaDocument | null;
-  curingSchema: SchemaDocument | null;
+  castingSchema: SchemaDocumentV2 | null;
+  curingSchema: SchemaDocumentV2 | null;
   motors: CastingCuringMotorSession[];
   curingFormValues: SchemaFormValues;
   curingSavedSections?: SchemaSectionSubmission[];
@@ -60,6 +66,7 @@ export type CastingCuringFormBody = {
     motorId: string;
     motorReceivedAt: string;
     sections: SchemaSectionSubmission[];
+    curingProjectStageMatrix?: CuringProjectStageMatrix;
   }>;
   curingSections: SchemaSectionSubmission[];
 };
@@ -94,7 +101,7 @@ export const createDefaultCastingCuringFormState = (): CastingCuringFormState =>
 export const createEmptyMotorSession = (
   motorId: string,
   motorReceivedAt: string,
-  schema: SchemaDocument | null,
+  schema: SchemaDocumentV2 | null,
   setupContext?: SchemaSetupContext,
 ): CastingCuringMotorSession => ({
   motorId,
@@ -131,6 +138,7 @@ export const mapCastingCuringDetailsToFormState = (details: any): CastingCuringF
           String(motor?.curingSetup?.ovensUtilized ?? "").trim(),
       ),
       savedSections: Array.isArray(motor?.sections) ? motor.sections : undefined,
+      curingProjectStageMatrix: motor?.curingProjectStageMatrix ?? undefined,
     }))
     .filter((motor) => motor.motorId.length > 0);
 
@@ -165,8 +173,8 @@ export const mapCastingCuringDetailsToFormState = (details: any): CastingCuringF
 
 export const hydrateCastingCuringFormState = (
   state: CastingCuringFormState,
-  castingSchema: SchemaDocument | null,
-  curingSchema: SchemaDocument | null,
+  castingSchema: SchemaDocumentV2 | null,
+  curingSchema: SchemaDocumentV2 | null,
 ): CastingCuringFormState => {
   const setupContext = buildCastingSetupContext(state.castingSetup);
   const motors = (state.motors ?? []).map((motor) => ({
@@ -222,14 +230,23 @@ export const mapCastingCuringFormStateToPayload = (
       finalMixCount: String(form.castingSetup?.finalMixCount ?? ""),
     },
     motors: castingSchema
-      ? (form.motors ?? []).map((motor) => ({
-          motorId: motor.motorId,
-          motorReceivedAt: motor.motorReceivedAt,
-          sections: buildCastingCuringSectionPayload(castingSchema, motor.formValues),
-        }))
+      ? (form.motors ?? []).map((motor) => {
+          const matrix = motor.curingFormValues?.PROJECT_STAGE_MATRIX as
+            | CuringProjectStageMatrix
+            | undefined;
+          return {
+            motorId: motor.motorId,
+            motorReceivedAt: motor.motorReceivedAt,
+            sections: buildCastingCuringSectionPayload(castingSchema, motor.formValues),
+            ...(matrix ? { curingProjectStageMatrix: matrix } : {}),
+          };
+        })
       : [],
     curingSections: curingSchema
-      ? buildCastingCuringSectionPayload(curingSchema, form.curingFormValues)
+      ? buildCastingCuringSectionPayload(
+          curingSchema,
+          form.motors?.[0]?.curingFormValues ?? form.curingFormValues,
+        )
       : [],
   };
 };

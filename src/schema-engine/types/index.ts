@@ -1,0 +1,52 @@
+export type {
+  SchemaAccordionConfig,
+  SchemaAction,
+  SchemaApiDataSource,
+  SchemaBlock,
+  SchemaBlockBase,
+  SchemaButtonBlock,
+  SchemaColSpan,
+  SchemaComponentMapping,
+  SchemaContext,
+  SchemaDataSource,
+  SchemaDesignSystem,
+  SchemaDisplayBlock,
+  SchemaDocumentV2,
+  SchemaFieldBlock,
+  SchemaFieldOption,
+  SchemaFieldType,
+  SchemaFormula,
+  SchemaGroupBlock,
+  SchemaMatrixBlock,
+  SchemaMatrixRowField,
+  SchemaMeta,
+  SchemaPayload,
+  SchemaRepeatConfig,
+  SchemaRootUi,
+  SchemaRowsConfig,
+  SchemaSection,
+  SchemaSectionBlock,
+  SchemaSpacingToken,
+  SchemaTableBlock,
+  SchemaTableColumn,
+  SchemaTableColumnGroup,
+  SchemaTableColumnSlot,
+  SchemaUiConfig,
+  SchemaValidation,
+  SchemaVisibilityCondition,
+  SchemaVisibilityOperator,
+  SchemaVisibleWhen,
+} from "./schema.types";
+
+export { SCHEMA_COMPONENT_MAP } from "./schema.types";
+
+export type { SchemaFormValues, SchemaSectionSubmission } from "../state/formState";
+
+export type {
+  SchemaFieldValue,
+  SchemaFormData,
+  SchemaRepeatInstanceData,
+  SchemaRepeatInstanceKey,
+  SchemaSubmissionPayload,
+  SchemaTableRow,
+} from "./formData.types";

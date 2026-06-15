@@ -18,10 +18,10 @@ import {
   buildCasePreparationSchemaRequest,
   casePreparationSchemaFetchConfig,
   createCasePrepInitialValues,
-  type SchemaDocument,
+  schemaEngineController,
+  type SchemaDocumentV2,
   type SchemaFormValues,
-} from "../../../schemaManagement";
-import schemaManagementController from "../../../schemaManagement/controllers/schemaManagementController";
+} from "../../../schema-engine";
 import {
   getSelectedCasePrepDraftMotorIds,
   isMainMotorBatch,
@@ -141,7 +141,7 @@ export const useCasePreparationHook = () => {
   };
 
   const fetchCasePrepSchema = useCallback(
-    async (batchType: string | undefined): Promise<SchemaDocument | null> => {
+    async (batchType: string | undefined): Promise<SchemaDocumentV2 | null> => {
       if (!subDepartmentId) {
         showAlert(STRINGS.MANUFACTURING.CASE_PREP.SUB_DEPARTMENT_MISSING, "error");
         return null;
@@ -150,7 +150,7 @@ export const useCasePreparationHook = () => {
       setSchemaLoading(true);
       setSchemaError(null);
 
-      const response = await schemaManagementController.fetchSchema(
+      const response = await schemaEngineController.fetchSchema(
         casePreparationSchemaFetchConfig,
         buildCasePreparationSchemaRequest({
           subDepartmentId,

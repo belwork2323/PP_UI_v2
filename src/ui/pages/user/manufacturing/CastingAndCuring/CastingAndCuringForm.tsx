@@ -25,7 +25,7 @@ import {
   type CastingProcessSetup,
   type CuringProcessSetup,
 } from "../../../../../data/models/user/CastingCuringFormModel";
-import { buildCastingSetupContext } from "../../../../../schemaManagement/utils/schemaSetupContext";
+import { buildCastingSetupContext } from "../../../../../schema-engine";
 import CastingCuringFlowBar from "./CastingCuringFlowBar";
 import CastingCuringSchemaPanel from "./CastingCuringSchemaPanel";
 import CastingCuringSetupHeaderCard from "./CastingCuringSetupHeaderCard";
@@ -42,6 +42,7 @@ type CastingAndCuringFormProps = {
   batch?: {
     batchId?: string;
     projectName?: string;
+    projectId?: string;
     motorId?: string;
     motorIds?: Array<string | number>;
     motorStage?: unknown;
@@ -139,6 +140,7 @@ const CastingAndCuringForm = ({
   const isCuringUnlocked = isActiveMotorCastingComplete;
   const curingFormLoaded = Boolean(activeMotorSession?.curingFormLoaded);
   const curingSetupDraft = activeMotorEntry ? getCuringSetupDraft(activeMotorEntry.motorId) : null;
+  const batchProjectId = String(batch?.projectId ?? "").trim();
   const showMotorWorkspace = Boolean(
     castingFormLoaded && formStarted && activeMotorEntry && activeMotorSession,
   );
@@ -369,15 +371,15 @@ const CastingAndCuringForm = ({
                   <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: theme.palette.primary, mb: 1 }}>
                     {S.CURING_SECTION_TITLE} — {activeMotorEntry.motorId}
                   </Typography>
-                  <Alert severity="info" sx={{ fontSize: "0.78rem", mb: 1.25 }}>
-                    {CASTING_CURING_FLOW_LABELS.curingNextStepHint}
-                  </Alert>
                   <CastingCuringSchemaPanel
                     schema={formData.curingSchema}
                     formValues={activeMotorSession.curingFormValues ?? formData.curingFormValues ?? {}}
                     savedSections={formData.curingSavedSections}
                     subDepartmentId={subDepartmentId}
                     batchId={batch?.batchId}
+                    projectId={batchProjectId || undefined}
+                    motorId={activeMotorEntry.motorId}
+                    setupContext={castingSetupContext}
                     onChange={(values) =>
                       onMotorSessionChange(activeMotorEntry.motorId, {
                         ...activeMotorSession,

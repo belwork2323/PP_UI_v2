@@ -23,9 +23,9 @@ import {
   castingCuringCastingSchemaFetchConfig,
   castingCuringCuringSchemaFetchConfig,
   createCastingCuringInitialValues,
-} from "../../../schemaManagement";
-import { buildCastingSetupContext } from "../../../schemaManagement/utils/schemaSetupContext";
-import schemaManagementController from "../../../schemaManagement/controllers/schemaManagementController";
+  buildCastingSetupContext,
+  schemaEngineController,
+} from "../../../schema-engine";
 import { MANUFACTURING_STATUS } from "./manufacturingWorkflowData";
 import {
   getSelectedCastingDraftMotorIds,
@@ -46,6 +46,7 @@ type CastingCuringBatch = {
   motorId?: string;
   motorIds?: Array<string | number>;
   projectName?: string;
+  projectId?: string;
   motorStage?: unknown;
   motorType?: unknown;
   [key: string]: any;
@@ -176,7 +177,7 @@ export const useCastingAndCuringHook = () => {
 
       const motorStage = resolveMotorStage(batch);
       try {
-        const castingResponse = await schemaManagementController.fetchSchema(
+        const castingResponse = await schemaEngineController.fetchSchema(
           castingCuringCastingSchemaFetchConfig,
           buildCastingCuringSchemaRequest({ subDepartmentId, motorStage, schemaType: "CASTING" }),
         );
@@ -216,7 +217,7 @@ export const useCastingAndCuringHook = () => {
 
       const motorStage = resolveMotorStage(batch);
       try {
-        const curingResponse = await schemaManagementController.fetchSchema(
+        const curingResponse = await schemaEngineController.fetchSchema(
           castingCuringCuringSchemaFetchConfig,
           buildCastingCuringSchemaRequest({ subDepartmentId, motorStage, schemaType: "CURING" }),
         );
@@ -260,11 +261,11 @@ export const useCastingAndCuringHook = () => {
 
       try {
         const [castingResponse, curingResponse] = await Promise.all([
-          schemaManagementController.fetchSchema(
+          schemaEngineController.fetchSchema(
             castingCuringCastingSchemaFetchConfig,
             buildCastingCuringSchemaRequest({ ...requestBase, schemaType: "CASTING" }),
           ),
-          schemaManagementController.fetchSchema(
+          schemaEngineController.fetchSchema(
             castingCuringCuringSchemaFetchConfig,
             buildCastingCuringSchemaRequest({ ...requestBase, schemaType: "CURING" }),
           ),
@@ -610,6 +611,7 @@ export const useCastingAndCuringHook = () => {
       if (!curingSchema) return;
 
       const setupSnapshot = { ...draft };
+
       const nextMotors = (formData.motors ?? []).map((motor) => {
         if (motor.motorId !== motorId) return motor;
         return {

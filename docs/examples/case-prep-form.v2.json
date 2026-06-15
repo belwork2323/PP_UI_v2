@@ -1,0 +1,277 @@
+{
+  "schemaVersion": "2.0",
+  "schemaType": "CASE_PREPARATION",
+  "functionality": "CREATE_CASE_PREPARATION_FORM",
+  "meta": {
+    "title": "Case Preparation"
+  },
+  "data": {
+    "ui": {
+      "layout": "flat",
+      "gap": "md",
+      "sectionVariant": "card"
+    },
+    "context": {
+      "subDepartmentId": 111,
+      "batchType": "MAIN_BATCH"
+    },
+    "sections": [
+      {
+        "id": "GENERAL_ACTIVITIES",
+        "title": "General Activities",
+        "ui": {
+          "variant": "card",
+          "icon": "cleaning_services",
+          "padding": "md",
+          "direction": "row",
+          "wrap": true,
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "field",
+            "id": "INSPECTION_DATE",
+            "fieldType": "date",
+            "label": "Inspection Date",
+            "validation": {
+              "required": true
+            }
+          },
+          {
+            "type": "field",
+            "id": "INSPECTED_BY",
+            "fieldType": "text",
+            "label": "Inspected By"
+          },
+          {
+            "type": "field",
+            "id": "CASE_CONDITION",
+            "fieldType": "dropdown",
+            "label": "Case Condition",
+            "validation": {
+              "required": true
+            },
+            "dataSource": {
+              "type": "static",
+              "options": [
+                {
+                  "label": "Acceptable",
+                  "value": "ACCEPTABLE"
+                },
+                {
+                  "label": "Rework Required",
+                  "value": "REWORK"
+                },
+                {
+                  "label": "Rejected",
+                  "value": "REJECTED"
+                }
+              ]
+            }
+          },
+          {
+            "type": "field",
+            "id": "REMARKS",
+            "fieldType": "textarea",
+            "label": "Remarks"
+          }
+        ]
+      },
+      {
+        "id": "MATERIAL_LOT_ENTRIES",
+        "title": "Material Lot Entries",
+        "ui": {
+          "variant": "card",
+          "padding": "md"
+        },
+        "children": [
+          {
+            "type": "group",
+            "id": "LOT_ROWS",
+            "label": "Lot",
+            "groupKey": "lots",
+            "repeat": {
+              "defaultCount": 1,
+              "min": 1,
+              "max": 10,
+              "allowAdd": true,
+              "allowDelete": true,
+              "label": "Lot {index}"
+            },
+            "ui": {
+              "direction": "row",
+              "wrap": true,
+              "gap": "md"
+            },
+            "children": [
+              {
+                "type": "field",
+                "id": "LOT_ID",
+                "fieldType": "dropdown",
+                "label": "Lot ID",
+                "validation": {
+                  "required": true
+                },
+                "dataSource": {
+                  "type": "api",
+                  "api": {
+                    "endpoint": "material-lots",
+                    "method": "POST",
+                    "requestBody": {
+                      "subdepartmentId": "{{subDepartmentId}}",
+                      "batchId": "{{batchId}}"
+                    },
+                    "responsePath": "data.materials",
+                    "displayKey": "lotId",
+                    "valueKey": "lotId"
+                  }
+                }
+              },
+              {
+                "type": "field",
+                "id": "QUANTITY_USED",
+                "fieldType": "number",
+                "label": "Quantity Used",
+                "unit": "kg",
+                "validation": {
+                  "min": 0
+                }
+              },
+              {
+                "type": "field",
+                "id": "LOT_REMARKS",
+                "fieldType": "text",
+                "label": "Remarks"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "LINEAR_COATING",
+        "title": "Linear Coating Operation",
+        "ui": {
+          "variant": "card",
+          "padding": "md"
+        },
+        "visibleWhen": {
+          "when": [
+            {
+              "field": "CASE_CONDITION",
+              "op": "NEQ",
+              "value": "REJECTED"
+            }
+          ],
+          "logic": "AND"
+        },
+        "children": [
+          {
+            "type": "table",
+            "id": "COATING_PARAMETERS",
+            "label": "Coating Parameters",
+            "rows": {
+              "defaultCount": 3,
+              "allowAdd": true,
+              "allowDelete": true,
+              "autoIncrementKey": "srNo"
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "srNo",
+                "fieldType": "serial",
+                "label": "Sr. No.",
+                "readonly": true
+              },
+              {
+                "type": "column",
+                "id": "parameter",
+                "fieldType": "text",
+                "label": "Parameter",
+                "readonly": true
+              },
+              {
+                "type": "column",
+                "id": "setValue",
+                "fieldType": "dynamic",
+                "label": "Set Value"
+              },
+              {
+                "type": "column",
+                "id": "actualValue",
+                "fieldType": "number",
+                "label": "Actual Value"
+              },
+              {
+                "type": "column",
+                "id": "remarks",
+                "fieldType": "text",
+                "label": "Remarks"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "DRUM_DETAILS",
+        "title": "Drum Details",
+        "ui": {
+          "variant": "card",
+          "padding": "md"
+        },
+        "children": [
+          {
+            "type": "group",
+            "id": "DRUM_GROUPS",
+            "label": "Drum",
+            "groupKey": "drums",
+            "repeat": {
+              "defaultCount": 1,
+              "min": 1,
+              "max": 5,
+              "allowAdd": true,
+              "allowDelete": true,
+              "label": "Drum {index}"
+            },
+            "children": [
+              {
+                "type": "field",
+                "id": "DRUM_NO",
+                "fieldType": "text",
+                "label": "Drum No"
+              },
+              {
+                "type": "field",
+                "id": "DRUM_WEIGHT",
+                "fieldType": "number",
+                "label": "Weight",
+                "unit": "kg"
+              },
+              {
+                "type": "field",
+                "id": "DRUM_MATERIAL",
+                "fieldType": "dropdown",
+                "label": "Material",
+                "dataSource": {
+                  "type": "static",
+                  "options": [
+                    "HTPB",
+                    "AP",
+                    "Aluminum",
+                    "Other"
+                  ]
+                }
+              },
+              {
+                "type": "field",
+                "id": "DRUM_NOTES",
+                "fieldType": "textarea",
+                "label": "Notes"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

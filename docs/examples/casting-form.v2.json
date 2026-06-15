@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "2.0",
+  "schemaType": "CASTING",
+  "functionality": "CREATE_CASTING_FORM",
+  "meta": {
+    "title": "Casting Form",
+    "description": "Casting process details for single motor"
+  },
+  "data": {
+    "ui": {
+      "layout": "accordion",
+      "gap": "md",
+      "sectionVariant": "card",
+      "sectionBorderRadius": "sm",
+      "designSystem": {
+        "colors": {
+          "primary": "#1565C0"
+        },
+        "radius": {
+          "sm": 4,
+          "md": 6,
+          "lg": 8
+        }
+      },
+      "accordion": {
+        "defaultExpanded": true,
+        "allowMultipleExpanded": true
+      }
+    },
+    "context": {
+      "motorStage": 1,
+      "subDepartmentId": "{{subDepartmentId}}",
+      "motorId": "{{motorId}}"
+    },
+    "sections": [
+      {
+        "id": "FINAL_ASSEMBLY_DETAILS",
+        "title": "Section A: Final Assembly Details",
+        "ui": {
+          "variant": "card",
+          "icon": "thermostat",
+          "padding": "md"
+        },
+        "children": [
+          {
+            "type": "table",
+            "id": "MANDREL_MEASUREMENTS",
+            "label": "Distance between centering top to mandrel top (mm)",
+            "rows": {
+              "defaultCount": 3,
+              "allowAdd": true,
+              "allowDelete": true,
+              "autoIncrementKey": "srNo"
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "srNo",
+                "fieldType": "serial",
+                "label": "Sr No."
+              },
+              {
+                "type": "group",
+                "id": "MANDREL_DOME_A",
+                "label": "Mandrel rest on dome of motor (A)",
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "A_MOCK",
+                    "fieldType": "number",
+                    "label": "Mock assy.",
+                    "unit": "mm"
+                  }
+                ]
+              },
+              {
+                "type": "group",
+                "id": "BOTTOM_CUP_B",
+                "label": "Mandrel rest on bottom cup with Teflon sleeve (B)",
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "B_MOCK",
+                    "fieldType": "number",
+                    "label": "Mock assy.",
+                    "unit": "mm"
+                  },
+                  {
+                    "type": "column",
+                    "id": "B_FINAL",
+                    "fieldType": "number",
+                    "label": "Final assy.",
+                    "unit": "mm"
+                  }
+                ]
+              },
+              {
+                "type": "group",
+                "id": "DIFFERENCE_C",
+                "label": "Difference C=(A-B)",
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "C_MOCK",
+                    "fieldType": "formula",
+                    "label": "Mock assy.",
+                    "formula": {
+                      "expression": "A_MOCK-B_MOCK",
+                      "dependencies": [
+                        "A_MOCK",
+                        "B_MOCK"
+                      ]
+                    },
+                    "readonly": true
+                  },
+                  {
+                    "type": "column",
+                    "id": "C_FINAL",
+                    "fieldType": "formula",
+                    "label": "Final assy.",
+                    "formula": {
+                      "expression": "A_MOCK-B_FINAL",
+                      "dependencies": [
+                        "A_MOCK",
+                        "B_FINAL"
+                      ]
+                    },
+                    "readonly": true
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "id": "BELLOWS_THICKNESS_D",
+                "fieldType": "number",
+                "label": "Bellow thickness (D)",
+                "unit": "mm"
+              },
+              {
+                "type": "group",
+                "id": "MANDREL_LIFT_E",
+                "label": "Mandrel lift E=(C-D)",
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "E_MOCK",
+                    "fieldType": "formula",
+                    "label": "Mock assy.",
+                    "formula": {
+                      "expression": "C_MOCK-BELLOWS_THICKNESS_D",
+                      "dependencies": [
+                        "C_MOCK",
+                        "BELLOWS_THICKNESS_D"
+                      ]
+                    },
+                    "readonly": true
+                  },
+                  {
+                    "type": "column",
+                    "id": "E_FINAL",
+                    "fieldType": "formula",
+                    "label": "Final assy.",
+                    "formula": {
+                      "expression": "C_FINAL-BELLOWS_THICKNESS_D",
+                      "dependencies": [
+                        "C_FINAL",
+                        "BELLOWS_THICKNESS_D"
+                      ]
+                    },
+                    "readonly": true
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "id": "EMPTY_MOTOR_WEIGHT",
+            "fieldType": "number",
+            "label": "Weight of assembled empty motor casing",
+            "unit": "kg"
+          }
+        ]
+      },
+      {
+        "id": "CASTING_PROCESS",
+        "title": "Section B: Casting Process",
+        "children": [
+          {
+            "type": "section",
+            "id": "finalMix",
+            "title": "Final Mix {index}",
+            "repeat": {
+              "defaultCount": "{{finalMixCount}}",
+              "min": "{{finalMixCount}}",
+              "max": "{{finalMixCount}}",
+              "allowAdd": false,
+              "allowDelete": false,
+              "label": "Final Mix {index}"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "BOWL_DETAILS",
+                "label": "Bowl Details",
+                "rows": {
+                  "defaultCount": 1,
+                  "allowAdd": true,
+                  "allowDelete": true
+                },
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "BOWL_ID",
+                    "fieldType": "text",
+                    "label": "Bowl Id"
+                  },
+                  {
+                    "type": "column",
+                    "id": "BOWL_RECEIPT_TIME",
+                    "fieldType": "time",
+                    "label": "Bowl Receipt Time"
+                  },
+                  {
+                    "type": "column",
+                    "id": "INITIAL_WEIGHT",
+                    "fieldType": "number",
+                    "label": "Initial Weight"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "table",
+            "id": "CASTING_FROM_BOWL_DETAILS",
+            "label": "Casting From Bowl Details",
+            "rows": {
+              "defaultCount": 1,
+              "allowAdd": true,
+              "allowDelete": true
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "BOWL_ID",
+                "fieldType": "text",
+                "label": "Bowl Id"
+              },
+              {
+                "type": "column",
+                "id": "TIME_INTERVAL",
+                "fieldType": "number",
+                "label": "Time Interval",
+                "unit": "hrs"
+              },
+              {
+                "type": "column",
+                "id": "VISCOSITY",
+                "fieldType": "number",
+                "label": "Viscosity",
+                "unit": "Poise"
+              },
+              {
+                "type": "column",
+                "id": "MOTOR_ID",
+                "fieldType": "text",
+                "label": "Motor Id No."
+              },
+              {
+                "type": "column",
+                "id": "VACUUM_LEVEL",
+                "fieldType": "number",
+                "label": "Vacuum Level",
+                "unit": "torr"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "POST_CAST_OPERATIONS",
+        "title": "Section D: Post Cast Operations",
+        "children": [
+          {
+            "type": "table",
+            "id": "POST_CAST_TABLE",
+            "rows": {
+              "defaultCount": 6,
+              "allowAdd": false,
+              "allowDelete": false
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "ACTIVITY",
+                "fieldType": "static",
+                "label": "Activity",
+                "defaultValues": [
+                  "Soaking Time",
+                  "Time of removal from pit",
+                  "Fixtures assembled for curing",
+                  "Pressure sensor details (If applicable)",
+                  "Initial pressure reading (If applicable)",
+                  "Time of dispatch to curing station"
+                ]
+              },
+              {
+                "type": "column",
+                "id": "MOTOR_ID_1",
+                "fieldType": "text",
+                "label": "Motor Id. No."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,12 +1,12 @@
-import type { SchemaDocument, SchemaFormValues, SchemaSectionSubmission } from "../../../schemaManagement";
+import type { SchemaDocumentV2, SchemaFormValues, SchemaSectionSubmission } from "../../../schema-engine";
 import {
   buildCasePrepMotorSubmission,
   buildCasePrepSectionPayload,
   createCasePrepInitialValues,
   hydrateCasePrepValuesFromSections,
   type CasePrepMotorSubmission,
-} from "../../../schemaManagement";
-import { schemaValuesHaveUserData } from "../../../schemaManagement/models/schemaFormState";
+} from "../../../schema-engine";
+import { schemaValuesHaveUserData } from "../../../schema-engine/state/formState";
 
 export type CasePrepMotorSession = {
   motorId: string;
@@ -16,7 +16,7 @@ export type CasePrepMotorSession = {
 };
 
 export type CasePreparationFormState = {
-  schema: SchemaDocument | null;
+  schema: SchemaDocumentV2 | null;
   motors: CasePrepMotorSession[];
   subscaleFormValues: SchemaFormValues;
   subscaleSavedSections?: SchemaSectionSubmission[];
@@ -38,7 +38,7 @@ export const createDefaultCasePreparationFormState = (): CasePreparationFormStat
 export const createEmptyMotorSession = (
   motorId: string,
   prrcClearanceDate: string,
-  schema: SchemaDocument | null
+  schema: SchemaDocumentV2 | null
 ): CasePrepMotorSession => ({
   motorId,
   prrcClearanceDate,
@@ -84,7 +84,7 @@ export const mapCasePreparationDetailsToFormState = (details: any): CasePreparat
 
 export const hydrateCasePreparationFormState = (
   state: CasePreparationFormState,
-  schema: SchemaDocument | null
+  schema: SchemaDocumentV2 | null
 ): CasePreparationFormState => {
   if (!schema) return state;
 

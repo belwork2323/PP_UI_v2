@@ -8,7 +8,7 @@ import {
   THERMAL_PROP_KEYS,
   type RocketMotorCasingFormData,
 } from "./RocketMotorCasingFormModel";
-import type { SchemaSectionSubmission } from "../../../schemaManagement/models/schema.types";
+import type { SchemaSectionSubmission } from "../../../schema-engine";
 
 /** Soft-delete is allowed only while the casing form is still in progress (draft). */
 export const canDeleteRocketMotorCasing = (status: string | null | undefined) =>

@@ -1,6 +1,6 @@
 import { STRINGS } from "../../../app/config/strings";
 import type { CuringProcessSetup } from "../../../data/models/user/CastingCuringFormModel";
-import type { SchemaDocument, SchemaFormValues } from "../../../schemaManagement";
+import type { SchemaDocumentV2, SchemaFormValues } from "../../../schema-engine";
 
 const S = STRINGS.MANUFACTURING.CASTING_CURING;
 
@@ -258,6 +258,17 @@ export const CASTING_CURING_FLOW_LABELS = {
   curingOvensUtilized: S.CURING_OVENS_UTILIZED,
   curingOvensUtilizedPlaceholder: S.CURING_OVENS_UTILIZED_PLACEHOLDER,
   curingOvensMatchHint: S.CURING_OVENS_MATCH_HINT,
+  curingCycleMatrixTitle: S.CURING_CYCLE_MATRIX_TITLE,
+  curingMatrixProjectName: S.CURING_MATRIX_PROJECT_NAME,
+  curingMatrixProjectId: S.CURING_MATRIX_PROJECT_ID,
+  curingMatrixBatchId: S.CURING_MATRIX_BATCH_ID,
+  curingMatrixDurationHint: S.CURING_MATRIX_DURATION_HINT,
+  curingMatrixDurationPlaceholder: S.CURING_MATRIX_DURATION_PLACEHOLDER,
+  curingMatrixAddRow: S.CURING_MATRIX_ADD_ROW,
+  curingMatrixAddColumn: S.CURING_MATRIX_ADD_COLUMN,
+  curingMatrixAddColumnPlaceholder: S.CURING_MATRIX_ADD_COLUMN_PLACEHOLDER,
+  curingMatrixNoStages: S.CURING_MATRIX_NO_STAGES,
+  curingStagesLoading: S.CURING_STAGES_LOADING,
   startForm: S.FLOW_START_FORM,
   schemaLoading: S.SCHEMA_LOADING,
   curingNextStepHint: S.CURING_NEXT_STEP_HINT,
@@ -311,16 +322,18 @@ export const sectionHasUserData = (sectionId: string, values: SchemaFormValues):
 };
 
 export const isMotorCastingComplete = (
-  castingSchema: SchemaDocument | null,
+  castingSchema: SchemaDocumentV2 | null,
   formValues: SchemaFormValues,
 ): boolean => {
-  const sections = castingSchema?.sections ?? [];
+  const sections = castingSchema?.data?.sections ?? [];
   if (!sections.length) return false;
-  return sections.every((section) => sectionHasUserData(section.sectionId, formValues));
+  return sections.every((section) =>
+    section.children.some((block) => valueHasUserData(formValues[block.id])),
+  );
 };
 
 export const isCastingCompleteForAllMotors = (form: {
-  castingSchema: SchemaDocument | null;
+  castingSchema: SchemaDocumentV2 | null;
   motors?: Array<{ formValues: SchemaFormValues }>;
 }) => {
   const { castingSchema, motors } = form;
