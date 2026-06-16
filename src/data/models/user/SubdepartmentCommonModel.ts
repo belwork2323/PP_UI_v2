@@ -101,6 +101,7 @@ export class MotorsStageListModel {
 }
 
 export type AvailableMotorOption = {
+
   motorCasingId: string;
   motorId: string;
   motorStage: string;
@@ -110,14 +111,15 @@ export type AvailableMotorOption = {
 };
 
 export class AvailableMotorModel implements AvailableMotorOption {
-  motorCasingId: string;
   motorId: string;
+  motorCasingId: string;
   motorStage: string;
   motorNo: string;
   projectId: string;
   status: string;
 
   constructor(payload: Record<string, unknown>) {
+    this.motorId = String(payload?.motorId ?? "").trim();
     this.motorCasingId = String(payload?.motorCasingId ?? "").trim();
     this.motorId = String(payload?.motorId ?? payload?.motorNo ?? "").trim();
     this.motorStage = String(payload?.motorStage ?? "").trim();

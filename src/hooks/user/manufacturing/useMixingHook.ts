@@ -14,7 +14,7 @@ import {
 import { MANUFACTURING_STATUS } from "./manufacturingWorkflowData";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type MixingBatch = {
   batchId: string;
@@ -41,6 +41,9 @@ export const useMixingHook = () => {
   const [activeBatch, setActiveBatch] = useState<MixingBatch | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingFormDetails, setLoadingFormDetails] = useState(false);
+  const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
@@ -100,7 +103,7 @@ export const useMixingHook = () => {
         setLoadingFormDetails(true);
         const detailsResponse = await mixingController.fetchFormDetails({
           formId: batch.formId,
-          subDepartmentId,
+          // subDepartmentId,
         });
         setLoadingFormDetails(false);
 
@@ -125,7 +128,44 @@ export const useMixingHook = () => {
     },
     [showAlert, subDepartmentId]
   );
+  const handleViewMixingDetails = useCallback(
+    async (row: MixingBatch) => {
+      if (!row.formId) {
+        showAlert(
+          STRINGS.MANUFACTURING.MIXING.FORM_ID_MISSING,
+          "error"
+        );
+        return;
+      }
 
+      setDetailsLoading(true);
+
+      const response = await mixingController.fetchFormDetails({
+        formId: row.formId,
+      });
+
+      setDetailsLoading(false);
+
+      if (!response?.success || !response?.data) {
+        showAlert(
+          response?.message ??
+            STRINGS.MANUFACTURING.MIXING.DETAILS_FETCH_ERROR,
+          "error"
+        );
+        return;
+      }
+
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [showAlert]
+  );
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
   const handleFillForm = useCallback(
     async (batch: MixingBatch) => await openFormWithResolvedData(batch, false),
     [openFormWithResolvedData]
@@ -170,8 +210,8 @@ export const useMixingHook = () => {
 
       const status = parseStatus(activeBatch.mxStatus);
       const isCreateFlow = status === parseStatus(MX_STATUS.INITIATED) && !activeBatch.formId;
-      const payloadBody = mapMixingFormStateToPayload(formData);
-
+      // const payloadBody = mapMixingFormStateToPayload(formData);
+      const mixingDetails = mapMixingFormStateToPayload(formData);
       setActionLoading(true);
       try {
         let response: any;
@@ -185,7 +225,7 @@ export const useMixingHook = () => {
             batchId: activeBatch.batchId,
             subDepartmentId,
             formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
-            ...payloadBody,
+            ...mixingDetails,
           });
         } else {
           if (!activeBatch.formId) {
@@ -193,11 +233,12 @@ export const useMixingHook = () => {
             return false;
           }
           response = await mixingController.updateForm({
-            formId: activeBatch.formId,
-            subDepartmentId,
-            formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
-            ...payloadBody,
-          });
+          formId: activeBatch.formId,
+          batchId: activeBatch.batchId,
+          subDepartmentId,
+          formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
+          ...mixingDetails,
+        });
         }
 
         if (!response?.success) {
@@ -268,6 +309,11 @@ export const useMixingHook = () => {
     handleFormChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewMixingDetails,
+    handleBackFromDetails,
   };
 };
 

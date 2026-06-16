@@ -45,7 +45,7 @@ const cellSx = (col: SchemaTableColumn) => ({
   minWidth: col.fieldType === "serial" ? 48 : col.fieldType === "datetime" ? 180 : 100,
 });
 
-const renderHeaderCells = (columns: SchemaTableColumnSlot[]) =>
+const renderFlatHeaderCells = (columns: SchemaTableColumnSlot[]) =>
   columns.flatMap((slot) => {
     if (isColumnGroup(slot)) {
       return slot.columns.map((col) => (
@@ -63,34 +63,46 @@ const renderHeaderCells = (columns: SchemaTableColumnSlot[]) =>
     );
   });
 
-const renderGroupHeaders = (columns: SchemaTableColumnSlot[]) => {
-  const hasGroups = columns.some(isColumnGroup);
-  if (!hasGroups) return null;
+const renderGroupedSubHeaderCells = (columns: SchemaTableColumnSlot[]) =>
+  columns.flatMap((slot) => {
+    if (!isColumnGroup(slot)) return [];
+    return slot.columns.map((col) => (
+      <TableCell key={col.id} sx={{ fontWeight: 700, fontSize: "0.72rem", ...cellSx(col) }}>
+        {col.label}
+        {col.unit ? ` (${col.unit})` : ""}
+      </TableCell>
+    ));
+  });
 
-  return (
-    <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
-      {columns.map((slot) => {
-        if (isColumnGroup(slot)) {
-          return (
-            <TableCell
-              key={slot.id}
-              colSpan={slot.columns.length}
-              align="center"
-              sx={{ fontWeight: 700, fontSize: "0.72rem" }}
-            >
-              {slot.label}
-            </TableCell>
-          );
-        }
+const renderGroupHeaderRow = (columns: SchemaTableColumnSlot[], allowDelete: boolean) => (
+  <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
+    {columns.map((slot) => {
+      if (isColumnGroup(slot)) {
         return (
-          <TableCell key={slot.id} rowSpan={2} sx={{ fontWeight: 700, fontSize: "0.72rem" }}>
+          <TableCell
+            key={slot.id}
+            colSpan={slot.columns.length}
+            align="center"
+            sx={{ fontWeight: 700, fontSize: "0.72rem" }}
+          >
             {slot.label}
           </TableCell>
         );
-      })}
-    </TableRow>
-  );
-};
+      }
+      return (
+        <TableCell key={slot.id} rowSpan={2} sx={{ fontWeight: 700, fontSize: "0.72rem", ...cellSx(slot) }}>
+          {slot.label}
+          {slot.unit ? ` (${slot.unit})` : ""}
+        </TableCell>
+      );
+    })}
+    {allowDelete ? (
+      <TableCell rowSpan={2} sx={{ width: 48, fontWeight: 700, fontSize: "0.72rem" }}>
+        Actions
+      </TableCell>
+    ) : null}
+  </TableRow>
+);
 
 
 const renderCellEditor = (
@@ -159,6 +171,7 @@ const DynamicTable = ({
   apiContext,
 }: DynamicTableProps) => {
   const flatColumns = flattenTableColumns(config.columns);
+  const hasColumnGroups = config.columns.some(isColumnGroup);
   const autoKey = config.rows?.autoIncrementKey ?? "srNo";
   const allowAdd = config.rows?.allowAdd !== false && !readOnly;
   const allowDelete = config.rows?.allowDelete !== false && !readOnly;
@@ -194,11 +207,19 @@ const DynamicTable = ({
       ) : null}
       <Table size="small" sx={{ tableLayout: "auto", minWidth: "100%" }}>
         <TableHead>
-          {renderGroupHeaders(config.columns)}
-          <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
-            {renderHeaderCells(config.columns)}
-            {allowDelete ? <TableCell sx={{ width: 48 }} /> : null}
-          </TableRow>
+          {hasColumnGroups ? (
+            <>
+              {renderGroupHeaderRow(config.columns, allowDelete)}
+              <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
+                {renderGroupedSubHeaderCells(config.columns)}
+              </TableRow>
+            </>
+          ) : (
+            <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
+              {renderFlatHeaderCells(config.columns)}
+              {allowDelete ? <TableCell sx={{ width: 48, fontWeight: 700, fontSize: "0.72rem" }}>Actions</TableCell> : null}
+            </TableRow>
+          )}
         </TableHead>
         <TableBody>
           {rows.map((row, rowIndex) => {

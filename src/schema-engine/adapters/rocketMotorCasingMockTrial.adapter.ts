@@ -9,7 +9,7 @@ import type { SchemaDocumentV2, SchemaFormValues, SchemaSectionSubmission } from
 
 export const MOCK_TRIAL_SCHEMA_FUNCTIONALITY = "CREATE_MOCK_TRIAL_FORM";
 export const MOCK_TRIAL_SCHEMA_TYPE = "MOCK_TRIAL";
-export const MOCK_TRIAL_SCHEMA_VERSION = "2.0";
+export const MOCK_TRIAL_SCHEMA_VERSION = "1.0";
 
 export const rocketMotorCasingMockTrialSchemaFetchConfig: SchemaFetchConfig = {
   endpoint: USER_RAW_MATERIAL_PREPARATION_ENDPOINTS.SCHEMA_MOCK_TRIAL,

@@ -1,9 +1,10 @@
 import { MenuItem } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FormInput from "./FormInput";
 import { schemaSelectMenuProps } from "./fieldStyles";
 import {
   fetchSchemaDataSourceOptions,
+  resolveDataSourceApi,
   resolveSchemaOptionKeys,
   staticDataSourceOptions,
   type SchemaApiContext,
@@ -33,6 +34,13 @@ const SchemaApiDropdown = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const resolvedApi = useMemo(
+    () => (dataSource?.type === "api" ? resolveDataSourceApi(dataSource as SchemaDataSource & Record<string, unknown>) : null),
+    [dataSource],
+  );
+
+  const apiContextKey = useMemo(() => JSON.stringify(apiContext ?? {}), [apiContext]);
+
   useEffect(() => {
     if (!dataSource) {
       setOptions([]);
@@ -44,13 +52,19 @@ const SchemaApiDropdown = ({
       return;
     }
 
+    if (!resolvedApi?.endpoint) {
+      setOptions([]);
+      setError("API endpoint is not configured.");
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     fetchSchemaDataSourceOptions(dataSource, apiContext).then(({ options: rows, error: fetchError }) => {
       if (cancelled) return;
       setLoading(false);
       setError(fetchError);
-      const keys = resolveSchemaOptionKeys(dataSource.api.displayKey, dataSource.api.valueKey, rows);
+      const keys = resolveSchemaOptionKeys(resolvedApi.displayKey, resolvedApi.valueKey, rows);
       setOptions(
         rows.map((row) => ({
           label: String(row[keys.displayKey] ?? ""),
@@ -62,7 +76,7 @@ const SchemaApiDropdown = ({
     return () => {
       cancelled = true;
     };
-  }, [dataSource, apiContext]);
+  }, [dataSource, apiContextKey, resolvedApi]);
 
   return (
     <FormInput

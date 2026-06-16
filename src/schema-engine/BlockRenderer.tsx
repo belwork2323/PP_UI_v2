@@ -12,6 +12,7 @@ import SchemaApiDropdown from "../ui/components/common/SchemaApiDropdown";
 import DynamicTable from "../ui/components/common/DynamicTable";
 import MatrixTable from "../ui/components/common/MatrixTable";
 import GridFields from "../ui/components/common/GridFields";
+import FileUploadButton from "../ui/components/common/FileUploadButton";
 import { DateField, DateTimeField, TimeField } from "../ui/components/common/DateField";
 import type { CuringProjectStageMatrix } from "../data/models/user/curingProjectStageMatrix";
 import { buildDefaultCuringProjectStageMatrix } from "../data/models/user/curingProjectStageMatrix";
@@ -64,6 +65,14 @@ const renderField = (block: SchemaFieldBlock, ctx: BlockRenderContext) => {
       return <TimeField label={block.label} value={value} onChange={onFieldChange} disabled={disabled} />;
     case "datetime":
       return <DateTimeField label={block.label} value={value} onChange={onFieldChange} disabled={disabled} />;
+    case "file":
+      return (
+        <FileUploadButton
+          label={block.label}
+          disabled={disabled}
+          onChange={(e) => onFieldChange(e.target.files?.[0]?.name ?? "")}
+        />
+      );
     case "number":
     case "decimal":
       return (

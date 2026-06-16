@@ -256,6 +256,7 @@ export const USER_POST_CURE_FORM_ENDPOINTS = {
   CREATE_FORM: `${API_BASE}/user/post-cure/form/create`,
   FORM_DETAILS: `${API_BASE}/user/post-cure/form/details`,
   UPDATE_FORM: `${API_BASE}/user/post-cure/form/update`,
+  SCHEMA: `${API_BASE}/user/post-cure/schema`,
 };
 
 export const USER_RAW_MATERIAL_REVALIDATION_ENDPOINTS = {

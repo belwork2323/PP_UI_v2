@@ -1,0 +1,132 @@
+{
+  "success": true,
+  "statusCode": 200,
+  "schemaVersion": "1.0",
+  "schemaType": "POST_CURE",
+  "functionality": "CREATE_POST_CURE_FORM",
+  "operationType": "LOOSE_FLAP_FILLING",
+  "message": "Post-cure schema fetched successfully",
+  "data": {
+    "meta": {
+      "title": "Loose Flap Filling",
+      "description": "De-coring, trimming and loose flap filling details"
+    },
+    "ui": {
+      "layout": "accordion",
+      "gap": "md",
+      "sectionVariant": "card",
+      "designSystem": {
+        "colors": {
+          "primary": "#1565C0",
+          "primaryLight": "#1976D2",
+          "surface": "#F4F6F8",
+          "border": "#D5D8DC",
+          "text": "#1C2833",
+          "textSub": "#5D6D7E",
+          "warn": "#D4AC0D"
+        }
+      },
+      "accordion": {
+        "defaultExpanded": true,
+        "allowMultipleExpanded": true
+      }
+    },
+    "context": {
+      "subDepartmentId": "{{subDepartmentId}}",
+      "batchId": "{{batchId}}",
+      "motorId": "{{motorId}}"
+    },
+    "sections": [
+      {
+        "id": "DECORING_DETAILS",
+        "title": "De-coring Details",
+        "ui": {
+          "variant": "card",
+          "icon": "handyman",
+          "padding": "md",
+          "direction": "row",
+          "wrap": true,
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "field",
+            "id": "DECORING_LOAD",
+            "fieldType": "number",
+            "label": "De-coring Load",
+            "unit": "kg"
+          }
+        ]
+      },
+      {
+        "id": "TRIMMING_DETAILS",
+        "title": "Trimming Details",
+        "ui": {
+          "variant": "card",
+          "padding": "md",
+          "direction": "row",
+          "wrap": true,
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "field",
+            "id": "TRIMMED_ZONE_DIMENSION",
+            "fieldType": "text",
+            "label": "Dimension of Trimmed Zone",
+            "unit": "mm"
+          }
+        ]
+      },
+      {
+        "id": "LF_FILLING_DETAILS",
+        "title": "Loose Flap Filling",
+        "ui": {
+          "variant": "card",
+          "padding": "md",
+          "direction": "column",
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "field",
+            "id": "LF_INSPECTION",
+            "fieldType": "textarea",
+            "label": "Inspection - Foreign Material"
+          },
+          {
+            "type": "group",
+            "id": "LF_WEIGHT_DETAILS",
+            "label": "Weight of LF Material Filled",
+            "ui": {
+              "direction": "row",
+              "wrap": true,
+              "gap": "md"
+            },
+            "children": [
+              {
+                "type": "field",
+                "id": "LF_WEIGHT_HE_SIDE_AND_DATE",
+                "fieldType": "text",
+                "label": "HE Side & Date"
+              },
+              {
+                "type": "field",
+                "id": "LF_WEIGHT_NE_SIDE_AND_DATE",
+                "fieldType": "text",
+                "label": "NE Side & Date"
+              },
+              {
+                "type": "field",
+                "id": "LF_WEIGHT_TOTAL",
+                "fieldType": "number",
+                "label": "Total",
+                "unit": "kg"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

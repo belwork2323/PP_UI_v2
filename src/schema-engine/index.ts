@@ -116,5 +116,18 @@ export {
   parseMockTrialSavedSections,
 } from "./adapters/rocketMotorCasingMockTrial.adapter";
 
+export {
+  PC_SCHEMA_FUNCTIONALITY,
+  PC_SCHEMA_TYPE,
+  PC_SCHEMA_VERSION,
+  postCureSchemaFetchConfig,
+  buildPostCureSchemaRequest,
+  createPostCureInitialValues,
+  hydratePostCureValuesFromSections,
+  buildPostCureSectionPayload,
+} from "./adapters/postCure.adapter";
+
+export type { PostCureSchemaRequestParams } from "./adapters/postCure.adapter";
+
 /** Back-compat alias */
 export { default as schemaManagementController } from "./controller/schemaEngineController";

@@ -43,6 +43,8 @@ export type SchemaApiDataSource = {
   endpoint: string;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   requestBody?: Record<string, unknown>;
+  /** Shorthand: pull this key from apiContext into the POST body (e.g. `batchId`). */
+  requestField?: string;
   responsePath?: string;
   displayKey?: string;
   valueKey?: string;
@@ -284,7 +286,7 @@ export type SchemaPayload = {
 };
 
 export type SchemaDocumentV2 = {
-  schemaVersion: "2.0";
+  schemaVersion: string;
   schemaType: string;
   functionality: string;
   meta?: SchemaMeta;

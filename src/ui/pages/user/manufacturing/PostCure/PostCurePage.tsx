@@ -34,6 +34,11 @@ const PostCurePage = () => {
     handleFormChange,
     handleSaveDraft,
     handleSubmit,
+    schemaLoading,
+    schemaError,
+    handleSchemaValuesChange,
+    handleLoadForm,
+    subDepartmentId,
   } = hookState;
 
   if (loading) {
@@ -61,11 +66,18 @@ const PostCurePage = () => {
         theme={theme}
       />
       <PostCureForm
-        initialData={formData}
-        isEditMode={isEditMode}
-        onBlocksChange={handleFormChange}
+        batch={activeBatch}
+        formData={formData}
+        subDepartmentId={subDepartmentId}
+        schemaLoading={schemaLoading}
+        schemaError={schemaError}
+        onSetupChange={handleFormChange}
+        onSchemaValuesChange={handleSchemaValuesChange}
+        onLoadForm={handleLoadForm}
+        theme={theme}
       />
 
+      {formData.schemaFormLoaded ? (
       <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mt={3} justifyContent="flex-end">
         <Button
           variant="outlined"
@@ -82,6 +94,7 @@ const PostCurePage = () => {
           {isEditMode ? actionStrings.RESUBMIT_APPROVAL : actionStrings.SUBMIT_APPROVAL}
         </Button>
       </Stack>
+      ) : null}
 
       <ConfirmAlertDialog
         open={backConfirmOpen}

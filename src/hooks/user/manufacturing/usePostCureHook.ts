@@ -7,10 +7,22 @@ import postCureController from "../../../controllers/user/manufacturing/postCure
 import {
   createDefaultPostCureFormState,
   hasAnyPostCureValue,
+  hydratePostCureFormWithSchema,
   mapPostCureDetailsToFormState,
   mapPostCureFormStateToPayload,
   type PostCureFormState,
 } from "../../../data/models/user/PostCureFormModel";
+import {
+  buildPostCureSchemaRequest,
+  postCureSchemaFetchConfig,
+  schemaEngineController,
+  type SchemaFormValues,
+} from "../../../schema-engine";
+import {
+  canLoadPostCureForm,
+  mapPostCureInhibitorTypeToApi,
+  mapPostCureOperationToApi,
+} from "./postCureConfig";
 import { MANUFACTURING_STATUS } from "./manufacturingWorkflowData";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
@@ -36,13 +48,15 @@ export const usePostCureHook = () => {
     () =>
       user?.allSubDepartments.find((sd) => sd.slugs?.subDept === "post-cure-operations")
         ?.subDepartmentId,
-    [user]
+    [user],
   );
 
   const [view, setView] = useState<WorkflowView>("list");
   const [activeBatch, setActiveBatch] = useState<PostCureBatch | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingFormDetails, setLoadingFormDetails] = useState(false);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
@@ -52,7 +66,7 @@ export const usePostCureHook = () => {
   const formSnapshot = useMemo(() => JSON.stringify(formData), [formData]);
   const isFormDirty = useMemo(
     () => view === "form" && formSnapshot !== initialSnapshot,
-    [view, formSnapshot, initialSnapshot]
+    [view, formSnapshot, initialSnapshot],
   );
 
   const resetFormContext = useCallback(() => {
@@ -61,6 +75,8 @@ export const usePostCureHook = () => {
     setActiveBatch(null);
     setIsEditMode(false);
     setLoadingFormDetails(false);
+    setSchemaLoading(false);
+    setSchemaError(null);
     setActionLoading(false);
     setBackConfirmOpen(false);
     setHasSavedDraft(false);
@@ -73,6 +89,44 @@ export const usePostCureHook = () => {
     if (response?.message) return response.message;
     return fallbackMessage;
   };
+
+  const fetchPostCureSchema = useCallback(
+    async (setup: Pick<PostCureFormState, "operation" | "inhibitorType">) => {
+      if (!subDepartmentId) {
+        showAlert(STRINGS.MANUFACTURING.POST_CURE.SUB_DEPARTMENT_MISSING, "error");
+        return null;
+      }
+
+      const operationType = mapPostCureOperationToApi(setup.operation);
+      if (!operationType) {
+        showAlert(STRINGS.MANUFACTURING.POST_CURE.OPERATION_MISSING, "warning");
+        return null;
+      }
+
+      const inhibitorType = mapPostCureInhibitorTypeToApi(setup.inhibitorType);
+      const request = buildPostCureSchemaRequest({
+        subDepartmentId,
+        operationType,
+        ...(operationType === "INHIBITION" && inhibitorType ? { inhibitorType } : {}),
+      });
+
+      setSchemaLoading(true);
+      setSchemaError(null);
+      try {
+        const response = await schemaEngineController.fetchSchema(postCureSchemaFetchConfig, request);
+        if (!response?.success || !response?.data) {
+          const message = getErrorMessage(response, STRINGS.MANUFACTURING.POST_CURE.SCHEMA_FETCH_ERROR);
+          setSchemaError(message);
+          showAlert(message, "error");
+          return null;
+        }
+        return response.data;
+      } finally {
+        setSchemaLoading(false);
+      }
+    },
+    [showAlert, subDepartmentId],
+  );
 
   const openFormWithResolvedData = useCallback(
     async (batch: PostCureBatch, editMode: boolean) => {
@@ -113,6 +167,13 @@ export const usePostCureHook = () => {
 
         nextBatch = { ...batch, formId: detailsResponse.data.formId || batch.formId };
         nextFormData = mapPostCureDetailsToFormState(detailsResponse.data);
+
+        if (nextFormData.schemaFormLoaded || nextFormData.savedSections?.length) {
+          const schema = await fetchPostCureSchema(nextFormData);
+          if (schema) {
+            nextFormData = hydratePostCureFormWithSchema(nextFormData, schema);
+          }
+        }
       }
 
       setActiveBatch(nextBatch);
@@ -121,17 +182,17 @@ export const usePostCureHook = () => {
       setInitialSnapshot(JSON.stringify(nextFormData));
       setView("form");
     },
-    [showAlert, subDepartmentId]
+    [showAlert, subDepartmentId, fetchPostCureSchema],
   );
 
   const handleFillForm = useCallback(
     async (batch: PostCureBatch) => await openFormWithResolvedData(batch, false),
-    [openFormWithResolvedData]
+    [openFormWithResolvedData],
   );
 
   const handleEditForm = useCallback(
     async (batch: PostCureBatch) => await openFormWithResolvedData(batch, true),
-    [openFormWithResolvedData]
+    [openFormWithResolvedData],
   );
 
   const handleBack = useCallback(() => {
@@ -152,12 +213,42 @@ export const usePostCureHook = () => {
     setFormData(payload ?? createDefaultPostCureFormState());
   }, []);
 
+  const handleSchemaValuesChange = useCallback((values: SchemaFormValues) => {
+    setFormData((prev) => ({ ...prev, schemaFormValues: values }));
+  }, []);
+
+  const handleLoadForm = useCallback(async () => {
+    if (
+      !canLoadPostCureForm({
+        motorId: formData.motorId,
+        motorReceiptDate: formData.motorReceiptDate,
+        operation: formData.operation,
+        inhibitorType: formData.inhibitorType,
+        schemaFormLoaded: formData.schemaFormLoaded,
+      })
+    ) {
+      return;
+    }
+
+    const schema = await fetchPostCureSchema(formData);
+    if (!schema) return;
+
+    const nextFormData = hydratePostCureFormWithSchema(formData, schema);
+    setFormData(nextFormData);
+    setSchemaError(null);
+  }, [formData, fetchPostCureSchema]);
+
   const submitForm = useCallback(
     async (intent: "draft" | "submit") => {
       if (!activeBatch) return false;
 
       if (!subDepartmentId) {
         showAlert(STRINGS.MANUFACTURING.POST_CURE.SUB_DEPARTMENT_MISSING, "error");
+        return false;
+      }
+
+      if (!formData.schemaFormLoaded || !formData.postCureSchema) {
+        showAlert(STRINGS.MANUFACTURING.POST_CURE.SCHEMA_NOT_LOADED, "warning");
         return false;
       }
 
@@ -168,7 +259,7 @@ export const usePostCureHook = () => {
 
       const status = parseStatus(activeBatch.pcStatus);
       const isCreateFlow = status === parseStatus(PC_STATUS.INITIATED) && !activeBatch.formId;
-      const payloadBody = mapPostCureFormStateToPayload(formData);
+      const payloadBody = mapPostCureFormStateToPayload(formData, formData.postCureSchema);
 
       setActionLoading(true);
       try {
@@ -216,7 +307,7 @@ export const usePostCureHook = () => {
               ? STRINGS.MANUFACTURING.POST_CURE.CREATE_DRAFT_SUCCESS
               : STRINGS.MANUFACTURING.POST_CURE.UPDATE_DRAFT_SUCCESS,
             "success",
-            { autoCloseMs: 2200 }
+            { autoCloseMs: 2200 },
           );
           setHasSavedDraft(true);
         } else {
@@ -225,7 +316,7 @@ export const usePostCureHook = () => {
               ? STRINGS.MANUFACTURING.POST_CURE.CREATE_SUBMIT_SUCCESS
               : STRINGS.MANUFACTURING.POST_CURE.UPDATE_SUBMIT_SUCCESS,
             "success",
-            { autoCloseMs: 2200 }
+            { autoCloseMs: 2200 },
           );
           await listParams.refreshUserBatches();
           resetFormContext();
@@ -236,7 +327,7 @@ export const usePostCureHook = () => {
         setActionLoading(false);
       }
     },
-    [activeBatch, subDepartmentId, formData, formSnapshot, showAlert, listParams, resetFormContext]
+    [activeBatch, subDepartmentId, formData, formSnapshot, showAlert, listParams, resetFormContext],
   );
 
   const handleSaveDraft = useCallback(async () => {
@@ -247,6 +338,18 @@ export const usePostCureHook = () => {
     return await submitForm("submit");
   }, [submitForm]);
 
+  const canLoadForm = useMemo(
+    () =>
+      canLoadPostCureForm({
+        motorId: formData.motorId,
+        motorReceiptDate: formData.motorReceiptDate,
+        operation: formData.operation,
+        inhibitorType: formData.inhibitorType,
+        schemaFormLoaded: formData.schemaFormLoaded,
+      }),
+    [formData],
+  );
+
   return {
     ...listParams,
     loading: listParams.loading || loadingFormDetails,
@@ -256,6 +359,10 @@ export const usePostCureHook = () => {
     formData,
     isFormDirty,
     actionLoading,
+    schemaLoading,
+    schemaError,
+    canLoadForm,
+    subDepartmentId,
     backConfirmOpen,
     setBackConfirmOpen,
     handleFillForm,
@@ -263,6 +370,8 @@ export const usePostCureHook = () => {
     handleBack,
     handleDiscardAndBack,
     handleFormChange,
+    handleSchemaValuesChange,
+    handleLoadForm,
     handleSaveDraft,
     handleSubmit,
   };

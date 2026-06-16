@@ -1,4 +1,25 @@
-import { createPostCureData } from "../../../hooks/user/manufacturing/postCureConfig";
+import {
+  createPostCureData,
+  isPostCureInhibitionOperation,
+  mapPostCureInhibitorTypeToApi,
+  mapPostCureOperationToApi,
+} from "../../../hooks/user/manufacturing/postCureConfig";
+import {
+  buildPostCureSectionPayload,
+  createPostCureInitialValues,
+  hydratePostCureValuesFromSections,
+  schemaValuesHaveUserData,
+  type SchemaDocumentV2,
+  type SchemaFormValues,
+  type SchemaSectionSubmission,
+} from "../../../schema-engine";
+
+export type PostCureSetupState = {
+  motorId: string;
+  motorReceiptDate: string;
+  operation: string;
+  inhibitorType: string;
+};
 
 export type PostCureFormState = ReturnType<typeof createPostCureData>;
 
@@ -8,81 +29,70 @@ export type PostCureDetails = {
   subDepartmentId: number;
   formSubmissionType: string;
   motorId: string;
-  decoring: {
-    decoringLoad: string;
-  };
-  trimming: {
-    trimmedZoneDimension: string;
-  };
-  lfFilling: {
-    inspection: string;
-    weight: {
-      heSideAndDate: string;
-      neSideAndDate: string;
-      total: string;
-    };
-  };
-  inhibitionResin: {
-    irType: string;
-    weight: {
-      heSideAndDate: string;
-      neSideAndDate: string;
-      total: string;
-    };
-  };
+  motorReceiptDate?: string;
+  operation?: string;
+  inhibitorType?: string;
+  sections?: SchemaSectionSubmission[];
 };
 
-export const createDefaultPostCureFormState = (): PostCureFormState => {
-  return createPostCureData();
-};
+export const createDefaultPostCureFormState = (): PostCureFormState => createPostCureData();
 
 export const mapPostCureDetailsToFormState = (details: Partial<PostCureDetails>): PostCureFormState => {
   const defaults = createDefaultPostCureFormState();
 
   return {
+    ...defaults,
     motorId: String(details?.motorId ?? defaults.motorId),
-    r1: String(details?.decoring?.decoringLoad ?? defaults.r1),
-    r2: String(details?.trimming?.trimmedZoneDimension ?? defaults.r2),
-    r3a: String(details?.lfFilling?.inspection ?? defaults.r3a),
-    r3b1: String(details?.lfFilling?.weight?.heSideAndDate ?? defaults.r3b1),
-    r3b2: String(details?.lfFilling?.weight?.neSideAndDate ?? defaults.r3b2),
-    r3b3: String(details?.lfFilling?.weight?.total ?? defaults.r3b3),
-    r4a: String(details?.inhibitionResin?.irType ?? defaults.r4a),
-    r4b1: String(details?.inhibitionResin?.weight?.heSideAndDate ?? defaults.r4b1),
-    r4b2: String(details?.inhibitionResin?.weight?.neSideAndDate ?? defaults.r4b2),
-    r4b3: String(details?.inhibitionResin?.weight?.total ?? defaults.r4b3),
+    motorReceiptDate: String(details?.motorReceiptDate ?? defaults.motorReceiptDate),
+    operation: String(details?.operation ?? defaults.operation),
+    inhibitorType: String(details?.inhibitorType ?? defaults.inhibitorType),
+    schemaFormLoaded: Boolean(details?.sections?.length),
+    savedSections: details?.sections,
   };
 };
 
-export const mapPostCureFormStateToPayload = (form: PostCureFormState) => ({
-  motorId: String(form.motorId ?? ""),
-  decoring: {
-    decoringLoad: String(form.r1 ?? ""),
-  },
-  trimming: {
-    trimmedZoneDimension: String(form.r2 ?? ""),
-  },
-  lfFilling: {
-    inspection: String(form.r3a ?? ""),
-    weight: {
-      heSideAndDate: String(form.r3b1 ?? ""),
-      neSideAndDate: String(form.r3b2 ?? ""),
-      total: String(form.r3b3 ?? ""),
-    },
-  },
-  inhibitionResin: {
-    irType: String(form.r4a ?? ""),
-    weight: {
-      heSideAndDate: String(form.r4b1 ?? ""),
-      neSideAndDate: String(form.r4b2 ?? ""),
-      total: String(form.r4b3 ?? ""),
-    },
-  },
-});
+export const mapPostCureFormStateToPayload = (
+  form: PostCureFormState,
+  schema: SchemaDocumentV2 | null,
+) => {
+  const operationType = mapPostCureOperationToApi(form.operation);
+  const inhibitorType = isPostCureInhibitionOperation(form.operation)
+    ? mapPostCureInhibitorTypeToApi(form.inhibitorType)
+    : null;
+
+  const payload: Record<string, unknown> = {
+    motorId: String(form.motorId ?? ""),
+    motorReceiptDate: String(form.motorReceiptDate ?? ""),
+    operationType,
+    sections: schema ? buildPostCureSectionPayload(schema, form.schemaFormValues) : [],
+  };
+
+  if (inhibitorType) {
+    payload.inhibitorType = inhibitorType;
+  }
+
+  return payload;
+};
 
 export const hasAnyPostCureValue = (form: PostCureFormState) => {
-  return Object.values(form).some((value) => String(value ?? "").trim().length > 0);
+  const setupFilled = [form.motorId, form.motorReceiptDate, form.operation, form.inhibitorType].some(
+    (value) => String(value ?? "").trim().length > 0,
+  );
+  const schemaFilled = schemaValuesHaveUserData(form.schemaFormValues ?? {});
+  return setupFilled || schemaFilled;
 };
+
+export const hydratePostCureFormWithSchema = (
+  form: PostCureFormState,
+  schema: SchemaDocumentV2,
+): PostCureFormState => ({
+  ...form,
+  postCureSchema: schema,
+  schemaFormLoaded: true,
+  schemaFormValues: form.savedSections?.length
+    ? hydratePostCureValuesFromSections(schema, form.savedSections)
+    : createPostCureInitialValues(schema),
+});
 
 export class PostCureSubmitResponseModel {
   formId: string;
@@ -104,22 +114,33 @@ export class PostCureSubmitResponseModel {
 export class PostCureDetailsModel {
   static fromApi(data: any): PostCureDetails {
     const payload = data?.data ?? data ?? {};
+    const operationType = String(payload?.operationType ?? "").trim();
+    const inhibitorType = String(payload?.inhibitorType ?? "").trim();
+
+    const operation =
+      operationType === "LOOSE_FLAP_FILLING"
+        ? "loose-flap-filling"
+        : operationType === "INHIBITION"
+          ? "inhibition"
+          : String(payload?.operation ?? "");
+
+    const mappedInhibitorType =
+      inhibitorType === "HEMCOAT_3K"
+        ? "Hemcoat-3K"
+        : inhibitorType === "NOT_APPLICABLE"
+          ? "not-applicable"
+          : inhibitorType || String(payload?.inhibitorType ?? "");
+
     return {
       formId: String(payload?.formId ?? ""),
       batchId: String(payload?.batchId ?? ""),
       subDepartmentId: Number(payload?.subDepartmentId ?? 0),
       formSubmissionType: String(payload?.formSubmissionType ?? ""),
       motorId: String(payload?.motorId ?? ""),
-      decoring: payload?.decoring ?? { decoringLoad: "" },
-      trimming: payload?.trimming ?? { trimmedZoneDimension: "" },
-      lfFilling: payload?.lfFilling ?? {
-        inspection: "",
-        weight: { heSideAndDate: "", neSideAndDate: "", total: "" },
-      },
-      inhibitionResin: payload?.inhibitionResin ?? {
-        irType: "",
-        weight: { heSideAndDate: "", neSideAndDate: "", total: "" },
-      },
+      motorReceiptDate: String(payload?.motorReceiptDate ?? ""),
+      operation,
+      inhibitorType: mappedInhibitorType,
+      sections: Array.isArray(payload?.sections) ? payload.sections : undefined,
     };
   }
 }

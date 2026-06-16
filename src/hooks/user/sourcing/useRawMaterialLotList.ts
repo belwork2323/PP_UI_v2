@@ -191,7 +191,8 @@ export const useRawMaterialLotList = () => {
         page: isClientSearch ? 1 : page + 1,
         limit: isClientSearch ? CLIENT_SEARCH_FETCH_LIMIT : rowsPerPage,
       };
-
+      console.log("statusFilter =", statusFilter);
+      console.log("mapped =", RAW_MATERIAL_UI_STATUS_TO_API[statusFilter]);
       if (statusFilter !== FILTER_ALL) {
         payload.status = [RAW_MATERIAL_UI_STATUS_TO_API[statusFilter] ?? statusFilter];
       }
@@ -211,7 +212,9 @@ export const useRawMaterialLotList = () => {
       }
       if (from) payload.fromDate = from;
       if (to) payload.toDate = to;
+      
 
+      console.log("LOT LIST PAYLOAD", payload);
       const res = await rawMaterialProcurementController.fetchLotList(payload);
 
       if (res?.success && res.data) {

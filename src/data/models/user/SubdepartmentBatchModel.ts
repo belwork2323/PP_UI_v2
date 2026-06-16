@@ -126,6 +126,43 @@ const resolveMotorId = (batch: Record<string, unknown>) => {
   return String(batch.motorId ?? "").trim();
 };
 
+const resolveBatchListStage = (batch: Record<string, unknown>) => {
+  const stage = batch.stage ?? batch.workflowStage ?? batch.currentStage;
+  if (stage == null || stage === "") return "";
+
+  if (typeof stage === "string") return stage.trim();
+
+  if (typeof stage === "object") {
+    const obj = stage as Record<string, unknown>;
+    const dept =
+      obj.department && typeof obj.department === "object"
+        ? (obj.department as Record<string, unknown>)
+        : obj.departmentId != null || obj.departmentName
+          ? obj
+          : null;
+
+    if (dept) {
+      const subDepts = Array.isArray(dept.subDepartments)
+        ? dept.subDepartments
+        : Array.isArray(dept.subDepartment)
+          ? dept.subDepartment
+          : [];
+      const firstSubDept = subDepts[0];
+      if (firstSubDept && typeof firstSubDept === "object") {
+        const subName = String(
+          (firstSubDept as Record<string, unknown>).subDepartmentName ?? "",
+        ).trim();
+        if (subName) return subName;
+      }
+      return String(dept.departmentName ?? "").trim();
+    }
+
+    return String(obj.label ?? obj.name ?? obj.stage ?? "").trim();
+  }
+
+  return String(stage).trim();
+};
+
 const resolveAssignedTo = (batch: Record<string, unknown>) => {
   if (batch.assignedTo && typeof batch.assignedTo === "object") {
     const assigned = batch.assignedTo as { id?: string; fullName?: string; name?: string };
@@ -181,6 +218,7 @@ export function mapSubdepartmentBatchListRow(
     rejectionReason: batch.rejectionReason ?? null,
     material: batch.material ?? batch.materialType ?? null,
     projectName: batch.projectName,
+    stage: resolveBatchListStage(batch),
     lotIds: Array.isArray(batch.lotIds) ? batch.lotIds : [],
     rmStatus: workflowStatus,
     [statusField]: workflowStatus,

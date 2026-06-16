@@ -1,10 +1,10 @@
 {
-  "schemaVersion": "2.0",
+  "schemaVersion": "1.0",
   "schemaType": "CURING",
   "functionality": "CREATE_CURING_FORM",
   "meta": {
     "title": "Curing Form",
-    "description": "Record curing cycles, post-curing observations, and de-coring details."
+    "description": "Motor curing cycle and post curing details"
   },
   "data": {
     "ui": {
@@ -15,9 +15,14 @@
       "designSystem": {
         "colors": {
           "primary": "#1565C0",
+          "primaryLight": "#1976D2",
           "surface": "#F4F6F8",
           "border": "#D5D8DC",
-          "text": "#1C2833"
+          "text": "#1C2833",
+          "textSub": "#5D6D7E"
+        },
+        "typography": {
+          "fontFamily": "'DM Sans', sans-serif"
         },
         "spacing": {
           "xs": 4,
@@ -27,11 +32,12 @@
           "xl": 24
         },
         "radius": {
-          "sm": 7,
-          "md": 11,
-          "lg": 16
+          "sm": 4,
+          "md": 6,
+          "lg": 8
         },
         "icons": {
+          "sectionDefault": "description",
           "curing": "thermostat"
         }
       },
@@ -47,59 +53,6 @@
       "motorId": "{{motorId}}"
     },
     "sections": [
-      {
-        "id": "CURING_SETUP",
-        "title": "Curing Setup",
-        "ui": {
-          "variant": "card",
-          "icon": "grid_view",
-          "padding": "md"
-        },
-        "children": [
-          {
-            "type": "matrix",
-            "id": "PROJECT_STAGE_MATRIX",
-            "title": "Curing Time Per Stage (minutes)",
-            "rowFields": [
-              {
-                "id": "projectName",
-                "label": "Project",
-                "readonly": true
-              },
-              {
-                "id": "batchId",
-                "label": "Batch",
-                "readonly": true
-              },
-              {
-                "id": "motorId",
-                "label": "Motor",
-                "readonly": true
-              }
-            ],
-            "columns": {
-              "type": "api",
-              "api": {
-                "endpoint": "MOTORS_STAGE_LIST",
-                "method": "GET",
-                "requestBody": {
-                  "subDepartmentId": "{{subDepartmentId}}"
-                },
-                "responsePath": "data",
-                "displayKey": "motorStage",
-                "valueKey": "motorStage"
-              }
-            },
-            "rows": {
-              "defaultCount": 1,
-              "allowAdd": true,
-              "allowDelete": true
-            },
-            "allowAddColumn": true,
-            "allowDeleteColumn": true
-          }
-        ]
-      },
       {
         "id": "CURING_CYCLES",
         "title": "Curing Cycles",
@@ -144,15 +97,11 @@
                     "id": "TEMPERATURE",
                     "fieldType": "number",
                     "label": "Temperature",
-                    "unit": "\u00b0C",
-                    "validation": {
-                      "min": 0,
-                      "max": 200
-                    }
+                    "unit": "°C"
                   },
                   {
                     "type": "column",
-                    "id": "DURATION",
+                    "id": "TIME",
                     "fieldType": "number",
                     "label": "Time",
                     "unit": "min"
@@ -171,16 +120,31 @@
                   },
                   {
                     "type": "column",
-                    "id": "HOT_WATER_CIRCULATION_STATUS",
+                    "id": "END_DATE",
+                    "fieldType": "date",
+                    "label": "End Date"
+                  },
+                  {
+                    "type": "column",
+                    "id": "END_TIME",
+                    "fieldType": "time",
+                    "label": "End Time"
+                  },
+                  {
+                    "type": "column",
+                    "id": "PROPELLANT_PRESSURE",
+                    "fieldType": "number",
+                    "label": "Propellant Pressure",
+                    "unit": "bar"
+                  },
+                  {
+                    "type": "column",
+                    "id": "HOT_WATER_STATUS",
                     "fieldType": "dropdown",
-                    "label": "Hot Water Status",
+                    "label": "Status Of Hot Water Circulation",
                     "dataSource": {
                       "type": "static",
-                      "options": [
-                        "ON",
-                        "OFF",
-                        "NOT_APPLICABLE"
-                      ]
+                      "options": ["ON", "OFF", "NA"]
                     }
                   }
                 ]
@@ -191,7 +155,7 @@
       },
       {
         "id": "POST_CURING_DETAILS",
-        "title": "Post Curing Details",
+        "title": "Section C: Post Curing Details",
         "ui": {
           "variant": "card",
           "padding": "md",
@@ -204,7 +168,21 @@
             "type": "field",
             "id": "OTHER_OBSERVATIONS",
             "fieldType": "textarea",
-            "label": "Any Other Observations"
+            "label": "Any Other Observations",
+            "ui": { "colSpan": { "xs": 12 } }
+          },
+          {
+            "type": "field",
+            "id": "VISUAL_OBSERVATION",
+            "fieldType": "textarea",
+            "label": "Visual Observation Of Cured Motor",
+            "ui": { "colSpan": { "xs": 12 } }
+          },
+          {
+            "type": "field",
+            "id": "PRESSURE_PLATE_REMOVAL_DATE_TIME",
+            "fieldType": "datetime",
+            "label": "Date/Time For Removal Of Pressure Plate"
           },
           {
             "type": "field",
@@ -214,51 +192,49 @@
           },
           {
             "type": "field",
-            "id": "DISPATCH_FOR_DECORING_DATETIME",
+            "id": "DE_CORING_DISPATCH_DATE_TIME",
             "fieldType": "datetime",
-            "label": "Dispatch For De-Coring"
+            "label": "Date/Time Of Dispatch For De-coring"
           }
         ]
       },
       {
         "id": "DECORING_DETAILS",
-        "title": "De-Coring Details",
+        "title": "Section D: De-coring Details",
         "ui": {
           "variant": "card",
-          "padding": "md"
+          "padding": "md",
+          "direction": "row",
+          "wrap": true,
+          "gap": "md"
         },
         "children": [
           {
             "type": "field",
             "id": "DECORING_DATE",
             "fieldType": "date",
-            "label": "Date Of De-Coring"
+            "label": "Date Of De-coring"
           },
           {
             "type": "field",
             "id": "BUILDING_NO",
-            "fieldType": "dropdown",
+            "fieldType": "textarea",
             "label": "Building No",
-            "dataSource": {
-              "type": "api",
-              "api": {
-                "endpoint": "BUILDING_MASTER",
-                "method": "POST",
-                "requestBody": {
-                  "subDepartmentId": "{{subDepartmentId}}"
-                },
-                "responsePath": "data.buildings",
-                "displayKey": "buildingName",
-                "valueKey": "buildingId"
-              }
-            }
+            "ui": { "colSpan": { "xs": 12, "sm": 6 } }
           },
           {
             "type": "field",
             "id": "DECORING_LOAD",
             "fieldType": "number",
-            "label": "De-Coring Load",
+            "label": "De-coring Load",
             "unit": "kg"
+          },
+          {
+            "type": "field",
+            "id": "DECORING_VISUAL_OBSERVATION",
+            "fieldType": "file",
+            "label": "Visual Observations",
+            "ui": { "colSpan": { "xs": 12 } }
           }
         ]
       }

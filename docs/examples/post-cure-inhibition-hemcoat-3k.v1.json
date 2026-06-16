@@ -1,0 +1,180 @@
+{
+  "success": true,
+  "statusCode": 200,
+  "schemaVersion": "1.0",
+  "schemaType": "POST_CURE",
+  "functionality": "CREATE_POST_CURE_FORM",
+  "operationType": "INHIBITION",
+  "inhibitorType": "HEMCOAT_3K",
+  "message": "Post-cure schema fetched successfully",
+  "data": {
+    "meta": {
+      "title": "INHIBITION - Hemcoat-3K",
+      "description": "Hemcoat-3K preparation, qualification and inhibition application details"
+    },
+    "ui": {
+      "layout": "accordion",
+      "gap": "md",
+      "sectionVariant": "card",
+      "designSystem": {
+        "colors": {
+          "primary": "#1565C0",
+          "primaryLight": "#1976D2",
+          "surface": "#F4F6F8",
+          "border": "#D5D8DC",
+          "text": "#1C2833",
+          "textSub": "#5D6D7E",
+          "warn": "#D4AC0D"
+        }
+      },
+      "accordion": {
+        "defaultExpanded": true,
+        "allowMultipleExpanded": true
+      }
+    },
+    "context": {
+      "subDepartmentId": "{{subDepartmentId}}",
+      "batchId": "{{batchId}}",
+      "motorId": "{{motorId}}"
+    },
+    "sections": [
+      {
+        "id": "HEMCOAT_PREMIX_PREPARATION",
+        "title": "Hemcoat-3K Premix Preparation Details",
+        "ui": {
+          "variant": "card",
+          "padding": "md"
+        },
+        "children": [
+          {
+            "type": "table",
+            "id": "HEMCOAT_PREMIX_TABLE",
+            "rows": {
+              "defaultCount": 1,
+              "allowAdd": false,
+              "allowDelete": false,
+              "presetRows": [
+                {
+                  "readonly": true,
+                  "ingredient": "Hemcoat-3K Premix",
+                  "partsByWeight": "As per work instruction"
+                }
+              ]
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "ingredient",
+                "fieldType": "static",
+                "label": "Ingredient",
+                "readonly": true
+              },
+              {
+                "type": "column",
+                "id": "partsByWeight",
+                "fieldType": "static",
+                "label": "Parts By Weight",
+                "readonly": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "HEMCOAT_QUALIFICATION",
+        "title": "Qualification Details",
+        "ui": {
+          "variant": "card",
+          "padding": "md",
+          "direction": "row",
+          "wrap": true,
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "field",
+            "id": "QUALIFICATION_REMARKS",
+            "fieldType": "textarea",
+            "label": "Qualification Remarks"
+          }
+        ]
+      },
+      {
+        "id": "INHIBITION_APPLICATION",
+        "title": "Inhibition Application Details",
+        "ui": {
+          "variant": "card",
+          "padding": "md",
+          "direction": "column",
+          "gap": "md"
+        },
+        "children": [
+          {
+            "type": "table",
+            "id": "APPLICATION_TABLE",
+            "rows": {
+              "defaultCount": 2,
+              "allowAdd": false,
+              "allowDelete": false,
+              "presetRows": [
+                {
+                  "readonly": true,
+                  "LOCATION": "HE Side"
+                },
+                {
+                  "readonly": true,
+                  "LOCATION": "NE Side"
+                }
+              ]
+            },
+            "columns": [
+              {
+                "type": "column",
+                "id": "LOCATION",
+                "fieldType": "static",
+                "label": "Location",
+                "readonly": true
+              },
+              {
+                "type": "column",
+                "id": "FROM_DATE",
+                "fieldType": "date",
+                "label": "From Date"
+              },
+              {
+                "type": "column",
+                "id": "TO_DATE",
+                "fieldType": "date",
+                "label": "To Date"
+              },
+              {
+                "type": "column",
+                "id": "QTY_APPLIED",
+                "fieldType": "number",
+                "label": "Qty Applied"
+              },
+              {
+                "type": "column",
+                "id": "OBSERVATIONS",
+                "fieldType": "textarea",
+                "label": "Observations"
+              }
+            ]
+          },
+          {
+            "type": "field",
+            "id": "DISPATCH_DATE",
+            "fieldType": "date",
+            "label": "Date Of Dispatch"
+          },
+          {
+            "type": "field",
+            "id": "DISPATCH_STATION",
+            "fieldType": "text",
+            "label": "Dispatch Station"
+          }
+        ]
+      }
+    ]
+  }
+}

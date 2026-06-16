@@ -9,7 +9,7 @@ import type { SchemaDocumentV2, SchemaFormValues, SchemaSectionSubmission } from
 
 export const CP_SCHEMA_FUNCTIONALITY = "CREATE_CASE_PREPARATION_FORM";
 export const CP_SCHEMA_TYPE = "CASE_PREPARATION";
-export const CP_SCHEMA_VERSION = "2.0";
+export const CP_SCHEMA_VERSION = "1.0";
 
 export const casePreparationSchemaFetchConfig: SchemaFetchConfig = {
   endpoint: USER_CASE_PREPARATION_ENDPOINTS.SCHEMA,

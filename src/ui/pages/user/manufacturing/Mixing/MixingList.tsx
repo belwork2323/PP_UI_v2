@@ -1,7 +1,7 @@
 // src/ui/pages/user/manufacturing/Mixing/MixingList.tsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, Typography,IconButton, Tooltip, Stack} from "@mui/material";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -12,7 +12,7 @@ import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/m
 import { getOperationStatusConfig, OPERATION_STATUS } from "../../../../../hooks/operationStatus";
 import { STRINGS } from "../../../../../app/config/strings";
 import { MIX_TYPE_OPTIONS } from "../../../../../hooks/user/manufacturing/mixingConfig";
-
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 const {
   pending: HourglassEmptyRoundedIcon,
   approved: CheckCircleRoundedIcon,
@@ -52,6 +52,7 @@ const MixingList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewMixingDetails,
   } = hookState;
 
   const statusConfig = useMemo(
@@ -61,7 +62,9 @@ const MixingList = ({ hookState, rowsPerPageOptions }: any) => {
       ),
     [theme],
   );
-
+  const canViewMixingDetails = (status: string) =>
+    status === OPERATION_STATUS.WAITING_FOR_APPROVAL ||
+    status === OPERATION_STATUS.APPROVED;
   const COLUMNS = useMemo(
     () => [
       {
@@ -157,17 +160,40 @@ const MixingList = ({ hookState, rowsPerPageOptions }: any) => {
       onStatusFilterChange={setStatusFilter}
       isLoading={loading}
       renderAction={(row: any) => (
-        <UserWorkflowStatusAction
-          status={row.mxStatus}
-          row={row}
-          statusMap={OPERATION_STATUS}
-          onFillForm={handleFillForm}
-          onEditForm={handleEditForm}
-          theme={theme}
-          fillLabel={S.BATCH_LIST.FILL_ACTION}
-          continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
-          editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
-        />
+        <Stack direction="row" spacing={0.75}>
+          {canViewMixingDetails(row.mxStatus) ? (
+            <Tooltip
+              title={S.MIXING.VIEW_DETAILS_TOOLTIP}
+              arrow
+            >
+              <IconButton
+                size="small"
+                onClick={() =>
+                  handleViewMixingDetails(row)
+                }
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${theme.palette.primaryLight}55`,
+                  borderRadius: 1.5,
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.mxStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              theme={theme}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+            />
+          )}
+        </Stack>
       )}
     />
   );

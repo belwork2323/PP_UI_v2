@@ -15,18 +15,23 @@ export const isColumnGroup = (slot: SchemaTableColumnSlot): slot is SchemaTableC
 export const flattenTableColumns = (columns: SchemaTableColumnSlot[]): SchemaTableColumn[] => {
   const result: SchemaTableColumn[] = [];
   columns.forEach((slot) => {
-    if (slot.type === "column") result.push(slot);
-    else if (slot.type === "group") result.push(...slot.columns);
+    if (slot.type === "column") {
+      result.push(slot);
+      return;
+    }
+    if (slot.type === "group") {
+      result.push(...slot.columns);
+    }
   });
   return result;
 };
 
 export const walkBlocks = (
-  blocks: SchemaBlock[],
+  blocks: SchemaBlock[] | undefined,
   visitor: (block: SchemaBlock, path: string[]) => void,
   path: string[] = [],
 ) => {
-  blocks.forEach((block) => {
+  (blocks ?? []).forEach((block) => {
     visitor(block, path);
     if (block.type === "section" || block.type === "group") {
       walkBlocks(block.children, visitor, [...path, block.id]);
@@ -76,7 +81,9 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
   if (!sections) return null;
 
   return {
-    schemaVersion: "2.0",
+    schemaVersion: String(
+      documentRoot.schemaVersion ?? root.schemaVersion ?? dataPayload.schemaVersion ?? "1.0",
+    ),
     schemaType: String(documentRoot.schemaType ?? root.schemaType ?? dataPayload.schemaType ?? ""),
     functionality: String(
       documentRoot.functionality ?? root.functionality ?? dataPayload.functionality ?? "",

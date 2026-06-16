@@ -1,5 +1,6 @@
 {
-  "schemaVersion": "2.0",
+  "schemaVersion": "1.0",
+  "motorStage": 1,
   "schemaType": "CASTING",
   "functionality": "CREATE_CASTING_FORM",
   "meta": {
@@ -10,22 +11,7 @@
     "ui": {
       "layout": "accordion",
       "gap": "md",
-      "sectionVariant": "card",
-      "sectionBorderRadius": "sm",
-      "designSystem": {
-        "colors": {
-          "primary": "#1565C0"
-        },
-        "radius": {
-          "sm": 4,
-          "md": 6,
-          "lg": 8
-        }
-      },
-      "accordion": {
-        "defaultExpanded": true,
-        "allowMultipleExpanded": true
-      }
+      "sectionVariant": "card"
     },
     "context": {
       "motorStage": 1,
@@ -38,147 +24,201 @@
         "title": "Section A: Final Assembly Details",
         "ui": {
           "variant": "card",
-          "icon": "thermostat",
           "padding": "md"
         },
         "children": [
           {
-            "type": "table",
-            "id": "MANDREL_MEASUREMENTS",
-            "label": "Distance between centering top to mandrel top (mm)",
-            "rows": {
-              "defaultCount": 3,
-              "allowAdd": true,
-              "allowDelete": true,
-              "autoIncrementKey": "srNo"
-            },
-            "columns": [
-              {
-                "type": "column",
-                "id": "srNo",
-                "fieldType": "serial",
-                "label": "Sr No."
-              },
-              {
-                "type": "group",
-                "id": "MANDREL_DOME_A",
-                "label": "Mandrel rest on dome of motor (A)",
-                "columns": [
-                  {
-                    "type": "column",
-                    "id": "A_MOCK",
-                    "fieldType": "number",
-                    "label": "Mock assy.",
-                    "unit": "mm"
-                  }
-                ]
-              },
-              {
-                "type": "group",
-                "id": "BOTTOM_CUP_B",
-                "label": "Mandrel rest on bottom cup with Teflon sleeve (B)",
-                "columns": [
-                  {
-                    "type": "column",
-                    "id": "B_MOCK",
-                    "fieldType": "number",
-                    "label": "Mock assy.",
-                    "unit": "mm"
-                  },
-                  {
-                    "type": "column",
-                    "id": "B_FINAL",
-                    "fieldType": "number",
-                    "label": "Final assy.",
-                    "unit": "mm"
-                  }
-                ]
-              },
-              {
-                "type": "group",
-                "id": "DIFFERENCE_C",
-                "label": "Difference C=(A-B)",
-                "columns": [
-                  {
-                    "type": "column",
-                    "id": "C_MOCK",
-                    "fieldType": "formula",
-                    "label": "Mock assy.",
-                    "formula": {
-                      "expression": "A_MOCK-B_MOCK",
-                      "dependencies": [
-                        "A_MOCK",
-                        "B_MOCK"
-                      ]
-                    },
-                    "readonly": true
-                  },
-                  {
-                    "type": "column",
-                    "id": "C_FINAL",
-                    "fieldType": "formula",
-                    "label": "Final assy.",
-                    "formula": {
-                      "expression": "A_MOCK-B_FINAL",
-                      "dependencies": [
-                        "A_MOCK",
-                        "B_FINAL"
-                      ]
-                    },
-                    "readonly": true
-                  }
-                ]
-              },
-              {
-                "type": "column",
-                "id": "BELLOWS_THICKNESS_D",
-                "fieldType": "number",
-                "label": "Bellow thickness (D)",
-                "unit": "mm"
-              },
-              {
-                "type": "group",
-                "id": "MANDREL_LIFT_E",
-                "label": "Mandrel lift E=(C-D)",
-                "columns": [
-                  {
-                    "type": "column",
-                    "id": "E_MOCK",
-                    "fieldType": "formula",
-                    "label": "Mock assy.",
-                    "formula": {
-                      "expression": "C_MOCK-BELLOWS_THICKNESS_D",
-                      "dependencies": [
-                        "C_MOCK",
-                        "BELLOWS_THICKNESS_D"
-                      ]
-                    },
-                    "readonly": true
-                  },
-                  {
-                    "type": "column",
-                    "id": "E_FINAL",
-                    "fieldType": "formula",
-                    "label": "Final assy.",
-                    "formula": {
-                      "expression": "C_FINAL-BELLOWS_THICKNESS_D",
-                      "dependencies": [
-                        "C_FINAL",
-                        "BELLOWS_THICKNESS_D"
-                      ]
-                    },
-                    "readonly": true
-                  }
-                ]
-              }
-            ]
+            "type": "display",
+            "id": "FINAL_ASSEMBLY_STAGE_LABEL",
+            "displayType": "description",
+            "label": "For Project A Stage - I"
           },
           {
-            "type": "field",
-            "id": "EMPTY_MOTOR_WEIGHT",
-            "fieldType": "number",
-            "label": "Weight of assembled empty motor casing",
-            "unit": "kg"
+            "type": "section",
+            "id": "motorCasing",
+            "title": "Rocket Motor Casing {index}",
+            "repeat": {
+              "defaultCount": 1,
+              "min": 1,
+              "max": 10,
+              "allowAdd": true,
+              "allowDelete": true,
+              "label": "Rocket Motor Casing {index}"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "MANDREL_MEASUREMENTS",
+                "label": "Distance between centering top to mandrel top (mm)",
+                "rows": {
+                  "defaultCount": 3,
+                  "allowAdd": true,
+                  "allowDelete": true,
+                  "autoIncrementKey": "srNo"
+                },
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "srNo",
+                    "fieldType": "serial",
+                    "label": "Sr. No."
+                  },
+                  {
+                    "type": "group",
+                    "id": "MANDREL_DOME_A",
+                    "label": "Mandrel rest on dome of motor (A)",
+                    "columns": [
+                      {
+                        "type": "column",
+                        "id": "A_MOCK",
+                        "fieldType": "number",
+                        "label": "Mock assy.",
+                        "unit": "mm"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "group",
+                    "id": "BOTTOM_CUP_B",
+                    "label": "Mandrel rest on bottom cup (with Teflon sleeve) (B)",
+                    "columns": [
+                      {
+                        "type": "column",
+                        "id": "B_MOCK",
+                        "fieldType": "number",
+                        "label": "Mock assy.",
+                        "unit": "mm"
+                      },
+                      {
+                        "type": "column",
+                        "id": "B_FINAL",
+                        "fieldType": "number",
+                        "label": "Final assy.",
+                        "unit": "mm"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "group",
+                    "id": "DIFFERENCE_C",
+                    "label": "Difference C=(A-B)",
+                    "columns": [
+                      {
+                        "type": "column",
+                        "id": "C_MOCK",
+                        "fieldType": "formula",
+                        "label": "Mock assy.",
+                        "formula": {
+                          "expression": "A_MOCK-B_MOCK",
+                          "dependencies": ["A_MOCK", "B_MOCK"]
+                        },
+                        "readonly": true
+                      },
+                      {
+                        "type": "column",
+                        "id": "C_FINAL",
+                        "fieldType": "formula",
+                        "label": "Final assy.",
+                        "formula": {
+                          "expression": "A_MOCK-B_FINAL",
+                          "dependencies": ["A_MOCK", "B_FINAL"]
+                        },
+                        "readonly": true
+                      }
+                    ]
+                  },
+                  {
+                    "type": "column",
+                    "id": "BELLOWS_THICKNESS_D",
+                    "fieldType": "number",
+                    "label": "Bellow thickness (D)",
+                    "unit": "mm"
+                  },
+                  {
+                    "type": "group",
+                    "id": "MANDREL_LIFT_E",
+                    "label": "Mandrel lift E=(C-D)",
+                    "columns": [
+                      {
+                        "type": "column",
+                        "id": "E_MOCK",
+                        "fieldType": "formula",
+                        "label": "Mock assy.",
+                        "formula": {
+                          "expression": "C_MOCK-BELLOWS_THICKNESS_D",
+                          "dependencies": ["C_MOCK", "BELLOWS_THICKNESS_D"]
+                        },
+                        "readonly": true
+                      },
+                      {
+                        "type": "column",
+                        "id": "E_FINAL",
+                        "fieldType": "formula",
+                        "label": "Final assy.",
+                        "formula": {
+                          "expression": "C_FINAL-BELLOWS_THICKNESS_D",
+                          "dependencies": ["C_FINAL", "BELLOWS_THICKNESS_D"]
+                        },
+                        "readonly": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "id": "FEED_PIPE_DISTANCE",
+                "label": "Measurement of distance between feed pipe & cone apex",
+                "rows": {
+                  "defaultCount": 1,
+                  "allowAdd": false,
+                  "allowDelete": false
+                },
+                "columns": [
+                  {
+                    "type": "column",
+                    "id": "READING_1",
+                    "fieldType": "number",
+                    "label": "Reading 1",
+                    "unit": "mm"
+                  },
+                  {
+                    "type": "column",
+                    "id": "READING_2",
+                    "fieldType": "number",
+                    "label": "Reading 2",
+                    "unit": "mm"
+                  }
+                ]
+              },
+              {
+                "type": "field",
+                "id": "EMPTY_MOTOR_WEIGHT",
+                "fieldType": "number",
+                "label": "Weight of assembled empty motor casing",
+                "unit": "kg"
+              },
+              {
+                "type": "field",
+                "id": "MOTOR_ID",
+                "fieldType": "dropdown",
+                "label": "Motor Id",
+                "dataSource": {
+                  "type": "api",
+                  "api": {
+                    "endpoint": "APPROVED_MOTORS_LIST",
+                    "method": "POST",
+                    "requestBody": {
+                      "subDepartmentId": "{{subDepartmentId}}",
+                      "batchId": "{{batchId}}"
+                    },
+                    "responsePath": "data",
+                    "displayKey": "motorId",
+                    "valueKey": "motorId"
+                  }
+                }
+              }
+            ]
           }
         ]
       },
@@ -187,9 +227,9 @@
         "title": "Section B: Casting Process",
         "children": [
           {
-            "type": "section",
-            "id": "finalMix",
-            "title": "Final Mix {index}",
+            "type": "group",
+            "id": "FINAL_MIX_DETAILS",
+            "label": "Final Mix {index}",
             "repeat": {
               "defaultCount": "{{finalMixCount}}",
               "min": "{{finalMixCount}}",
@@ -226,6 +266,30 @@
                     "id": "INITIAL_WEIGHT",
                     "fieldType": "number",
                     "label": "Initial Weight"
+                  },
+                  {
+                    "type": "column",
+                    "id": "FINAL_WEIGHT",
+                    "fieldType": "number",
+                    "label": "Final Weight"
+                  },
+                  {
+                    "type": "column",
+                    "id": "INITIAL_SLURRY_DEPTH",
+                    "fieldType": "number",
+                    "label": "Initial Slurry Depth"
+                  },
+                  {
+                    "type": "column",
+                    "id": "DC_OPEN_TIME",
+                    "fieldType": "time",
+                    "label": "Bowl D/C Valve Opening Time"
+                  },
+                  {
+                    "type": "column",
+                    "id": "DC_CLOSE_TIME",
+                    "fieldType": "time",
+                    "label": "Bowl D/C Valve Closing Time"
                   }
                 ]
               }
@@ -256,6 +320,13 @@
               },
               {
                 "type": "column",
+                "id": "RH",
+                "fieldType": "number",
+                "label": "RH",
+                "unit": "%"
+              },
+              {
+                "type": "column",
                 "id": "VISCOSITY",
                 "fieldType": "number",
                 "label": "Viscosity",
@@ -266,6 +337,13 @@
                 "id": "MOTOR_ID",
                 "fieldType": "text",
                 "label": "Motor Id No."
+              },
+              {
+                "type": "column",
+                "id": "SLURRY_DEPTH",
+                "fieldType": "number",
+                "label": "Slurry Depth",
+                "unit": "cm"
               },
               {
                 "type": "column",
@@ -288,7 +366,15 @@
             "rows": {
               "defaultCount": 6,
               "allowAdd": false,
-              "allowDelete": false
+              "allowDelete": false,
+              "presetRows": [
+                { "readonly": true, "ACTIVITY": "Soaking Time" },
+                { "readonly": true, "ACTIVITY": "Time of removal from pit" },
+                { "readonly": true, "ACTIVITY": "Fixtures assembled for curing" },
+                { "readonly": true, "ACTIVITY": "Pressure sensor details (If applicable)" },
+                { "readonly": true, "ACTIVITY": "Initial pressure reading (If applicable)" },
+                { "readonly": true, "ACTIVITY": "Time of dispatch to curing station" }
+              ]
             },
             "columns": [
               {
@@ -296,20 +382,13 @@
                 "id": "ACTIVITY",
                 "fieldType": "static",
                 "label": "Activity",
-                "defaultValues": [
-                  "Soaking Time",
-                  "Time of removal from pit",
-                  "Fixtures assembled for curing",
-                  "Pressure sensor details (If applicable)",
-                  "Initial pressure reading (If applicable)",
-                  "Time of dispatch to curing station"
-                ]
+                "readonly": true
               },
               {
                 "type": "column",
-                "id": "MOTOR_ID_1",
+                "id": "MOTOR_ID",
                 "fieldType": "text",
-                "label": "Motor Id. No."
+                "label": "Motor Id No."
               }
             ]
           }

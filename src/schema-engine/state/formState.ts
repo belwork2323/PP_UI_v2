@@ -137,7 +137,7 @@ export const buildInitialFormValues = (
       return;
     }
     if (block.type === "section") {
-      block.children.forEach(assignBlock);
+      (block.children ?? []).forEach(assignBlock);
       return;
     }
     if (block.type === "group") {
@@ -149,7 +149,9 @@ export const buildInitialFormValues = (
     }
   };
 
-  schema.data.sections.forEach((section) => section.children.forEach(assignBlock));
+  schema.data.sections.forEach((section) => {
+    (section.children ?? []).forEach(assignBlock);
+  });
   return values;
 };
 
@@ -179,7 +181,7 @@ const collectSectionRow = (blocks: SchemaBlock[], values: SchemaFormValues): Rec
     if (block.type === "section" && block.repeat) {
       row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id] ?? []));
     } else if (block.type === "section") {
-      Object.assign(row, collectSectionRow(block.children, values));
+      Object.assign(row, collectSectionRow(block.children ?? [], values));
     }
   });
   return row;
@@ -191,7 +193,7 @@ export const toSectionSubmissions = (
 ): SchemaSectionSubmission[] =>
   schema.data.sections.map((section) => ({
     sectionId: section.id,
-    sectionData: [collectSectionRow(section.children, values)],
+    sectionData: [collectSectionRow(section.children ?? [], values)],
   }));
 
 export const mergeSectionDataIntoValues = (
@@ -208,7 +210,7 @@ export const mergeSectionDataIntoValues = (
     const savedRow = saved[0];
     if (!savedRow || typeof savedRow !== "object") return;
 
-    walkBlocks(section.children, (block) => {
+    walkBlocks(section.children ?? [], (block) => {
       if (!(block.id in (savedRow as Record<string, unknown>))) return;
       initial[block.id] = cloneValue((savedRow as Record<string, unknown>)[block.id]);
     });

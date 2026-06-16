@@ -17,7 +17,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
+  TableRow, CircularProgress
 } from "@mui/material";
 import { styled, keyframes } from "@mui/material/styles";
 
@@ -27,6 +27,7 @@ import ApproverActionDialog from "../../../components/custom/ApproverActionDialo
 import { icons } from "../../../../app/theme/icons";
 import { APPROVER_PRIORITY_META, APPROVER_STATUS_META, isApproverActionableStatus } from "../../../../app/theme/approver";
 import useApproverFormAction from "../../../../hooks/approver/useApproverFormAction";
+import { fetchMixingFormDetailsApi } from "../../../../data/api/users/manufacturing/mixingFormApi";
 
 const {
   approved: CheckCircleRoundedIcon,
@@ -60,7 +61,8 @@ const BRAND = {
 };
 
 const slideUp = keyframes`from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}`;
-
+const PRIORITY_META = APPROVER_PRIORITY_META;
+export const MIX_STATUS_META = APPROVER_STATUS_META;
 // ─── Styled components ────────────────────────────────────────────────────────
 const TH = styled(TableCell)({
   background: `linear-gradient(135deg, ${BRAND.mx}, ${BRAND.mxLight})`,
@@ -252,10 +254,10 @@ const FinalMixingTable = ({ final }) => (
 );
 
 // ─── Detail Dialog ────────────────────────────────────────────────────────────
-const MixingDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
+const MixingDetailDialog = ({ open, onClose, item, detailData, detailsLoading, onApprove, onReject }) => {
   const [pdfOpen, setPdfOpen] = useState(false);
   if (!item) return null;
-
+  const detail = detailData ?? item;
   const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
   return (
@@ -312,6 +314,8 @@ const MixingDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
                 border: `1px solid ${PRIORITY_META[item.priority]?.border}`,
               }}
             />
+            {detailsLoading && <CircularProgress size={16} sx={{ color: alpha("#fff", 0.7) }} />}
+            
             <Button
               size="small"
               variant="contained"
@@ -344,12 +348,12 @@ const MixingDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
           <Stack spacing={4}>
             <Box>
               <SectionDivider icon={BlenderRoundedIcon} label="Pre-Mixing" />
-              <PreMixingTable pre={item.pre} />
+              <PreMixingTable pre={detail.pre} />
             </Box>
 
             <Box>
               <SectionDivider icon={BlenderRoundedIcon} label="Final Mixing" />
-              <FinalMixingTable final={item.final} />
+              <FinalMixingTable final={detail.final} />
             </Box>
           </Stack>
         </DialogContent>
@@ -397,7 +401,7 @@ const MixingDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
         formId={item.formId}
         department="manufacturing"
         subDepartment="mixing"
-        dialogTitle={`Mixing Report — ${item.batchId}`}
+        dialogTitle={`Mixing Report — ${detail.batchId}`}
       />
     </>
   );
@@ -405,15 +409,37 @@ const MixingDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const MixingApproverPage = () => {
-  const [items, setItems] = useState(MOCK_MIX_SUBMISSIONS);
+  const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+
+
   const { dialogProps, requestApprove, requestReject } = useApproverFormAction({
     department: "manufacturing",
     setItems,
     setSelected,
     subDepartment: "mixing",
   });
+const handleViewDetails = async (row) => {
+  setSelected(row);
+  setDetailData(null);
+  setDetailsLoading(true);
 
+  try {
+    const response = await fetchMixingFormDetailsApi({formId: row.formId} as any);
+
+    const mixing = response?.data?.mixingDetails;
+
+    if (mixing) {
+      setDetailData(mixing);
+    }
+  } catch {
+    setDetailData(null);
+  } finally {
+    setDetailsLoading(false);
+  }
+};
   return (
     <ApproverList
       department="manufacturing"
@@ -499,7 +525,7 @@ const MixingApproverPage = () => {
                           size="small"
                           variant="outlined"
                           startIcon={<VisibilityRoundedIcon sx={{ fontSize: "13px !important" }} />}
-                          onClick={() => setSelected(row)}
+                          onClick={() => handleViewDetails(row)}
                           disabled={!isApproverActionableStatus(row.status)}
                           sx={{
                             borderColor: isApproverActionableStatus(row.status) ? BRAND.mx : BRAND.border,
@@ -516,10 +542,15 @@ const MixingApproverPage = () => {
             </TableContainer>
           </Card>
 
-          <MixingDetailDialog
+         <MixingDetailDialog
             open={!!selected}
-            onClose={() => setSelected(null)}
+            onClose={() => {
+              setSelected(null);
+              setDetailData(null);
+            }}
             item={selected}
+            detailData={detailData}
+            detailsLoading={detailsLoading}
             onApprove={requestApprove}
             onReject={requestReject}
           />
