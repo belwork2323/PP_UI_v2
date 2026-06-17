@@ -1,6 +1,6 @@
 // src/ui/pages/approver/manufacturing/CastingCuring/CastingCuringApproverPage.jsx
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Stack,
@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  CircularProgress,
 } from "@mui/material";
 import { styled, keyframes } from "@mui/material/styles";
 
@@ -25,8 +26,13 @@ import { ReportPreviewDialog } from "../components/ReportPdf";
 import ApproverList from "../components/ApproverList";
 import ApproverActionDialog from "../../../components/custom/ApproverActionDialog";
 import { icons } from "../../../../app/theme/icons";
-import { APPROVER_PRIORITY_META, APPROVER_STATUS_META, isApproverActionableStatus } from "../../../../app/theme/approver";
+import {
+  APPROVER_PRIORITY_META,
+  APPROVER_STATUS_META,
+  isApproverActionableStatus,
+} from "../../../../app/theme/approver";
 import useApproverFormAction from "../../../../hooks/approver/useApproverFormAction";
+import castingCuringController from "../../../../controllers/user/manufacturing/castingCuringController";
 
 const {
   approved: CheckCircleRoundedIcon,
@@ -34,8 +40,6 @@ const {
   visibility: VisibilityRoundedIcon,
   close: CloseRoundedIcon,
   thermostat: ThermostatRoundedIcon,
-  scale: ScaleRoundedIcon,
-  timer: TimerRoundedIcon,
   pdf: PictureAsPdfRoundedIcon,
 } = icons.approver.manufacturing.castingAndCuring;
 
@@ -63,57 +67,12 @@ const BRAND = {
 
 const slideUp = keyframes`from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}`;
 
-// ─── Status meta ──────────────────────────────────────────────────────────────
+// ─── Status / Priority meta ───────────────────────────────────────────────────
 export const CC_STATUS_META = APPROVER_STATUS_META;
 
 const PRIORITY_META = APPROVER_PRIORITY_META;
 
-// ─── Mock data (aligned with CastingCuringForm data shape) ─────────────────────
-const MOCK_CC_SUBMISSIONS = [
-  {
-    id: 1,
-    batchId: "CC-2025-042",
-    motorId: "MFG-SRM-2025-119",
-    motorType: "A",
-    status: "Pending",
-    priority: "High",
-    submittedBy: "arjun.menon",
-    createdOn: "2025-03-10T08:45:00",
-
-    bowl: {
-      motorIds: { m1: "M-2101", m2: "M-2102" },
-      rows: [
-        { id: 1, bowlNo: "1", propellantQty: "18.4", viscosity: "4200", viscosityTemp: "28", arrivalTime: "09:15", slurry1: "9.2", slurry2: "9.1" },
-        { id: 2, bowlNo: "2", propellantQty: "17.9", viscosity: "3950", viscosityTemp: "27.5", arrivalTime: "10:40", slurry1: "8.9", slurry2: "8.95" },
-        { id: 3, bowlNo: "3", propellantQty: "18.1", viscosity: "4100", viscosityTemp: "28.2", arrivalTime: "12:05", slurry1: "9.05", slurry2: "9.0" },
-      ],
-    },
-    curingDetails: {
-      motorIds: { m1: "M-2101", m2: "M-2102" },
-      r1: { m1: "5×10⁻²", m2: "4.8×10⁻²" },
-      r2: { m1: "4.2×10⁻² / 1.8 kg/min", m2: "4.1×10⁻² / 1.75 kg/min" },
-      r3: [
-        { id: "t0", label: "T0", m1: "5×10⁻²", m2: "4.9×10⁻²" },
-        { id: "t1", label: "T0 + 30", m1: "6×10⁻²", m2: "5.5×10⁻²" },
-        { id: "t2", label: "T0 + 60", m1: "4.8×10⁻²", m2: "4.7×10⁻²" },
-      ],
-      r4: { param: "Total casting time", m1: "52 min", m2: "54 min" },
-      r5a: { m1: "36.2", m2: "35.8" },
-      r5b: { m1: "35.9", m2: "35.6" },
-      r6: { param: "Propellant cast", m1: "36.15", m2: "35.85" },
-    },
-    curingDetails2: {
-      motorIds: { m1: "M-2101", m2: "M-2102" },
-      r1: { m1: "68", m2: "67" },
-      r2: { m1: "65°C ±2 / 72 hrs", m2: "65°C ±2 / 72 hrs" },
-      r3: { m1: "65°C / 48 hrs", m2: "65°C / 48 hrs" },
-      r4: { m1: "72", m2: "71" },
-    },
-  },
-  // ... you can add more mock entries
-];
-
-// ─── Styled components (same as CasePreparation) ──────────────────────────────
+// ─── Styled components ────────────────────────────────────────────────────────
 const TH = styled(TableCell)({
   background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryLight})`,
   color: "#fff",
@@ -155,10 +114,16 @@ const DTD = styled(TableCell)({
   verticalAlign: "middle",
 });
 
-const rowBg = (i) => (i % 2 === 0 ? "#fff" : alpha(BRAND.surface, 0.6));
-const hov = { "&:hover": { background: alpha(BRAND.cc, 0.025) } };
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const rowBg = (i: number) => (i % 2 === 0 ? "#fff" : alpha(BRAND.surface, 0.6));
 
-// ─── Reusable small components ────────────────────────────────────────────────
+const fmt = (id: string) =>
+  String(id ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+
+// ─── Small display components ─────────────────────────────────────────────────
 const StatusChip = ({ status }) => (
   <Chip
     label={status}
@@ -188,6 +153,122 @@ const PriorityChip = ({ priority }) => (
     }}
   />
 );
+
+const isDataTable = (arr: any[]): boolean => {
+  if (arr.length === 0) return true;
+  return arr.every(
+    (item) =>
+      typeof item === "object" &&
+      !Array.isArray(item) &&
+      item !== null &&
+      !Object.values(item).some((v) => Array.isArray(v)),
+  );
+};
+
+const renderFieldValue = (value: any): React.ReactNode => {
+  if (value == null || value === "") return <Typography sx={{ fontSize: "0.72rem", color: alpha(BRAND.textSub, 0.45), fontStyle: "italic" }}>—</Typography>;
+  if (typeof value === "string") {
+    const lower = value.toLowerCase();
+    if (lower === "ok") return <Chip label="OK" size="small" sx={{ height: 20, fontSize: "0.62rem", fontWeight: 700, background: BRAND.okBg, color: BRAND.ok, border: `1.5px solid ${BRAND.okBorder}` }} />;
+    if (lower === "notok" || lower === "not ok") return <Chip label="Not OK" size="small" sx={{ height: 20, fontSize: "0.62rem", fontWeight: 700, background: BRAND.notOkBg, color: BRAND.notOk, border: `1.5px solid ${BRAND.notOkBorder}` }} />;
+    return <Typography sx={{ fontWeight: 600, fontSize: "0.78rem", color: BRAND.text }}>{value}</Typography>;
+  }
+  if (typeof value === "number" || typeof value === "boolean")
+    return <Typography sx={{ fontWeight: 600, fontSize: "0.78rem", color: BRAND.text }}>{String(value)}</Typography>;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return null;
+    const allItems = value.filter((x) => x != null && typeof x === "object" && !Array.isArray(x));
+    if (allItems.length === 0) return null;
+    if (isDataTable(allItems)) return <DataTable rows={allItems} />;
+    return value.map((entry, ei) => renderFieldEntry(entry, ei));
+  }
+  return <Typography sx={{ fontWeight: 600, fontSize: "0.78rem", color: BRAND.text }}>{String(value)}</Typography>;
+};
+
+const DataTable = ({ rows }: { rows: Record<string, any>[] }) => {
+  const cols = Array.from(new Set(rows.flatMap((r) => Object.keys(r)))).map((k) => ({ key: k, label: fmt(k) }));
+  if (cols.length === 0) return null;
+  return (
+    <TableContainer sx={{ borderRadius: 1, border: `1px solid ${BRAND.border}`, mb: 0.5 }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {cols.map((c) => (
+              <DTH key={c.key} sx={{ fontSize: "0.6rem", px: 1, py: 0.5 }}>{c.label}</DTH>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row, ri) => (
+            <TableRow key={ri} sx={{ background: rowBg(ri) }}>
+              {cols.map((c) => (
+                <DTD key={c.key} sx={{ fontSize: "0.68rem", px: 1, py: 0.5 }}>{renderFieldValue(row[c.key])}</DTD>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+
+const renderFieldEntry = (entry: any, index: number): React.ReactNode => {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+  return (
+    <Box key={index} sx={{ mb: 1, p: 1, borderRadius: 1, border: `1px solid ${alpha(BRAND.border, 0.5)}`, background: alpha(BRAND.surface, 0.3) }}>
+      {Object.entries(entry).map(([key, val]) => (
+        <Box key={key} sx={{ mb: 0.5 }}>
+          {Array.isArray(val) && val.length > 0 && typeof val[0] === "object" && !Array.isArray(val[0]) && !isDataTable(val as any[]) ? (
+            <>
+              <Typography sx={{ fontWeight: 700, fontSize: "0.7rem", color: BRAND.cc, mb: 0.3 }}>{fmt(key)}</Typography>
+              {(val as any[]).map((sub, si) => renderFieldEntry(sub, si))}
+            </>
+          ) : (
+            <FieldRow label={key} value={val} />
+          )}
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
+const FieldRow = ({ label, value }: { label: string; value: any }) => (
+  <Stack direction="row" sx={{ py: 0.2 }}>
+    <Typography sx={{ minWidth: 180, fontSize: "0.7rem", fontWeight: 700, color: BRAND.textSub }}>{fmt(label)}</Typography>
+    <Box sx={{ flex: 1 }}>{renderFieldValue(value)}</Box>
+  </Stack>
+);
+
+const SectionRenderer = ({ section }: { section: any }) => {
+  if (!section) return null;
+  const { sectionId, sectionData } = section;
+  if (!Array.isArray(sectionData) || sectionData.length === 0) return null;
+  const row = sectionData[0];
+  if (!row || typeof row !== "object") return null;
+  const entries = Object.entries(row).filter(([, v]) => v != null);
+  if (entries.length === 0) return null;
+  return (
+    <Box sx={{ mb: 1.5, borderRadius: "8px", border: `1px solid ${BRAND.border}`, overflow: "hidden", background: "#fff" }}>
+      <Box sx={{ px: 2, py: 1, background: alpha(BRAND.cc, 0.04), borderBottom: `1px solid ${BRAND.border}` }}>
+        <Typography sx={{ fontWeight: 800, fontSize: "0.75rem", color: BRAND.cc }}>{fmt(sectionId)}</Typography>
+      </Box>
+      <Box sx={{ p: 1.5 }}>
+        {entries.map(([key, val]) => (
+          <Box key={key} sx={{ mb: 0.5 }}>
+            {Array.isArray(val) && val.length > 0 && typeof val[0] === "object" && !Array.isArray(val[0]) && !isDataTable(val as any[]) ? (
+              <>
+                <Typography sx={{ fontWeight: 700, fontSize: "0.72rem", color: BRAND.cc, mb: 0.3 }}>{fmt(key)}</Typography>
+                {(val as any[]).map((entry, ei) => renderFieldEntry(entry, ei))}
+              </>
+            ) : (
+              <FieldRow label={key} value={val} />
+            )}
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
 
 const MotorIdHeader = ({ label, id }) => (
   <Stack gap={0.4}>
@@ -233,211 +314,125 @@ const SectionDivider = ({ icon: Icon, label }) => (
     >
       <Icon sx={{ color: "#fff", fontSize: 14 }} />
     </Box>
-    <Typography
-      sx={{
-        fontWeight: 800,
-        fontSize: "0.78rem",
-        color: BRAND.cc,
-        letterSpacing: "0.04em",
-      }}
-    >
+    <Typography sx={{ fontWeight: 800, fontSize: "0.78rem", color: BRAND.cc, letterSpacing: "0.04em" }}>
       {label}
     </Typography>
     <Box sx={{ flex: 1, height: "1px", background: alpha(BRAND.cc, 0.18) }} />
   </Stack>
 );
 
-// ─── Detail Tables ────────────────────────────────────────────────────────────
-const BowlDetailsTable = ({ bowl }) => (
-  <TableContainer
-    sx={{
-      borderRadius: "8px",
-      border: `1px solid ${BRAND.border}`,
-      boxShadow: `0 1px 8px ${alpha(BRAND.cc, 0.06)}`,
-      overflowX: "auto",
-    }}
-  >
-    <Table size="small" sx={{ minWidth: 780 }}>
-      <TableHead>
-        <TableRow>
-          <DTH sx={{ minWidth: 80 }}>Bowl No.</DTH>
-          <DTH sx={{ minWidth: 140 }}>Propellant Qty (kg)</DTH>
-          <DTH sx={{ minWidth: 180 }}>Viscosity (P @ °C)</DTH>
-          <DTH sx={{ minWidth: 140 }}>Arrival Time</DTH>
-          <DTH sx={{ minWidth: 120 }}>Slurry M1 (kg)</DTH>
-          <DTH sx={{ minWidth: 120 }}>Slurry M2 (kg)</DTH>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {bowl?.rows?.map((row, i) => (
-          <TableRow key={row.id} sx={{ background: rowBg(i), ...hov }}>
-            <DTD>
-              <Typography sx={{ fontWeight: 800, color: BRAND.cc }}>{row.bowlNo}</Typography>
-            </DTD>
-            <DTD>{row.propellantQty || "—"}</DTD>
-            <DTD>
-              {row.viscosity || "—"} P @ {row.viscosityTemp || "—"}°C
-            </DTD>
-            <DTD>{row.arrivalTime || "—"}</DTD>
-            <DTD>{row.slurry1 || "—"}</DTD>
-            <DTD>{row.slurry2 || "—"}</DTD>
-          </TableRow>
-        )) || (
-          <TableRow>
-            <DTD colSpan={6} align="center">
-              No bowl data
-            </DTD>
-          </TableRow>
+// ─── Dynamic section renderer for schema sections ────────────────────────────
+
+
+const MotorSectionsCard = ({ motor, index }) => {
+  const castingSections = Array.isArray(motor.castingSections) ? motor.castingSections : [];
+  const curingSections = Array.isArray(motor.curingSections) ? motor.curingSections : [];
+  const hasSetupData = motor.motorReceivedAt || motor.setup?.castingType || motor.setup?.castingStation;
+  const hasAnySection = castingSections.length > 0 || curingSections.length > 0;
+
+  if (!hasSetupData && !hasAnySection) return null;
+
+  return (
+    <Box sx={{ borderRadius: "8px", border: `1px solid ${BRAND.border}`, overflow: "hidden", background: "#fff" }}>
+      <Box
+        sx={{
+          px: 2,
+          py: 1.2,
+          background: `linear-gradient(135deg, ${BRAND.primary}, ${BRAND.primaryLight})`,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <Typography sx={{ fontWeight: 800, fontSize: "0.85rem", color: "#fff" }}>
+          Motor {index + 1}: {motor.motorId || "—"}
+        </Typography>
+        {motor.motorStage != null && (
+          <Chip
+            label={`Stage ${motor.motorStage}`}
+            size="small"
+            sx={{ height: 20, fontSize: "0.62rem", fontWeight: 700, background: alpha("#fff", 0.2), color: "#fff" }}
+          />
         )}
-      </TableBody>
-    </Table>
-  </TableContainer>
-);
+      </Box>
+      <Box sx={{ p: 2 }}>
+        {hasSetupData && (
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 1,
+              background: alpha(BRAND.cc, 0.03),
+              border: `1px solid ${alpha(BRAND.border, 0.5)}`,
+            }}
+          >
+            <Typography sx={{ fontWeight: 700, fontSize: "0.72rem", color: BRAND.textSub, mb: 0.5 }}>
+              Casting Setup Info
+            </Typography>
+            {motor.motorReceivedAt && <DetailRowSmall label="Motor Received At" value={motor.motorReceivedAt} />}
+            {motor.setup?.castingType && <DetailRowSmall label="Casting Type" value={motor.setup.castingType} />}
+            {motor.setup?.castingStation && (
+              <DetailRowSmall label="Casting Station" value={motor.setup.castingStation} />
+            )}
+          </Box>
+        )}
+        {motor.curingSetup?.oven || motor.curingSetup?.curingType ? (
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: 1,
+              background: alpha(BRAND.cc, 0.03),
+              border: `1px solid ${alpha(BRAND.border, 0.5)}`,
+            }}
+          >
+            <Typography sx={{ fontWeight: 700, fontSize: "0.72rem", color: BRAND.textSub, mb: 0.5 }}>
+              Curing Setup Info
+            </Typography>
+            {motor.curingSetup?.oven && <DetailRowSmall label="Oven" value={motor.curingSetup.oven} />}
+            {motor.curingSetup?.curingType && <DetailRowSmall label="Curing Type" value={motor.curingSetup.curingType} />}
+            {motor.curingSetup?.configuration && <DetailRowSmall label="Configuration" value={motor.curingSetup.configuration} />}
+            {motor.curingSetup?.motorsToCureCount !== "" && motor.curingSetup?.motorsToCureCount != null && (
+              <DetailRowSmall label="Motors to Cure" value={String(motor.curingSetup.motorsToCureCount)} />
+            )}
+            {motor.curingSetup?.ovensUtilized && <DetailRowSmall label="Ovens Utilized" value={motor.curingSetup.ovensUtilized} />}
+          </Box>
+        ) : null}
+        <Stack spacing={0.5}>
+          {castingSections.map((sec) => (
+            <SectionRenderer key={sec.sectionId} section={sec} />
+          ))}
+          {curingSections.map((sec) => (
+            <SectionRenderer key={sec.sectionId} section={sec} />
+          ))}
+        </Stack>
+      </Box>
+    </Box>
+  );
+};
 
-const CastingDetailsTable = ({ cd, motorIds }) => (
-  <TableContainer
-    sx={{
-      borderRadius: "8px",
-      border: `1px solid ${BRAND.border}`,
-      boxShadow: `0 1px 8px ${alpha(BRAND.cc, 0.06)}`,
-      overflowX: "auto",
-    }}
-  >
-    <Table size="small" sx={{ minWidth: 720 }}>
-      <TableHead>
-        <TableRow>
-          <DTH sx={{ minWidth: 260 }}>Activity</DTH>
-          <DTH sx={{ minWidth: 180 }}>Parameter</DTH>
-          <DTH sx={{ minWidth: 160 }}>
-            <MotorIdHeader label="Motor No." id={motorIds?.m1} />
-          </DTH>
-          <DTH sx={{ minWidth: 160 }}>
-            <MotorIdHeader label="Motor No." id={motorIds?.m2} />
-          </DTH>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        <TableRow sx={{ background: rowBg(0), ...hov }}>
-          <DTD>1. Vacuum Build Up</DTD>
-          <DTD>Vacuum Level</DTD>
-          <DTD>{cd?.r1?.m1 || "—"}</DTD>
-          <DTD>{cd?.r1?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(1), ...hov }}>
-          <DTD>2. Start Casting</DTD>
-          <DTD>Vacuum and Flow Rate</DTD>
-          <DTD>{cd?.r2?.m1 || "—"}</DTD>
-          <DTD>{cd?.r2?.m2 || "—"}</DTD>
-        </TableRow>
-
-        {cd?.r3?.map((tRow, idx) => (
-          <TableRow key={tRow.id} sx={{ background: rowBg((idx + 2) % 2), ...hov }}>
-            <DTD>Vacuum check @ {tRow.label}</DTD>
-            <DTD>torr</DTD>
-            <DTD>{tRow.m1 || "—"}</DTD>
-            <DTD>{tRow.m2 || "—"}</DTD>
-          </TableRow>
-        ))}
-
-        <TableRow sx={{ background: rowBg(0), ...hov }}>
-          <DTD>4. Casting Duration</DTD>
-          <DTD>{cd?.r4?.param || "Parameter"}</DTD>
-          <DTD>{cd?.r4?.m1 || "—"}</DTD>
-          <DTD>{cd?.r4?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(1), ...hov }}>
-          <DTD rowSpan={2}>5. Load Cell Reading</DTD>
-          <DTD>Weight – Initial</DTD>
-          <DTD>{cd?.r5a?.m1 || "—"}</DTD>
-          <DTD>{cd?.r5a?.m2 || "—"}</DTD>
-        </TableRow>
-        <TableRow sx={{ background: rowBg(0), ...hov }}>
-          <DTD>Weight – Final</DTD>
-          <DTD>{cd?.r5b?.m1 || "—"}</DTD>
-          <DTD>{cd?.r5b?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(1), ...hov }}>
-          <DTD>6. Total Wt.</DTD>
-          <DTD>{cd?.r6?.param || "Parameter"}</DTD>
-          <DTD>{cd?.r6?.m1 || "—"}</DTD>
-          <DTD>{cd?.r6?.m2 || "—"}</DTD>
-        </TableRow>
-      </TableBody>
-    </Table>
-  </TableContainer>
-);
-
-const CuringDetailsTable = ({ cd2, motorIds }) => (
-  <TableContainer
-    sx={{
-      borderRadius: "8px",
-      border: `1px solid ${BRAND.border}`,
-      boxShadow: `0 1px 8px ${alpha(BRAND.cc, 0.06)}`,
-      overflowX: "auto",
-    }}
-  >
-    <Table size="small" sx={{ minWidth: 720 }}>
-      <TableHead>
-        <TableRow>
-          <DTH sx={{ minWidth: 260 }}>Activity</DTH>
-          <DTH sx={{ minWidth: 180 }}>Parameter</DTH>
-          <DTH sx={{ minWidth: 160 }}>
-            <MotorIdHeader label="Motor No." id={motorIds?.m1} />
-          </DTH>
-          <DTH sx={{ minWidth: 160 }}>
-            <MotorIdHeader label="Motor No." id={motorIds?.m2} />
-          </DTH>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        <TableRow sx={{ background: rowBg(0), ...hov }}>
-          <DTD>1. Achieving Desired Temperature</DTD>
-          <DTD>Temp (°C)</DTD>
-          <DTD>{cd2?.r1?.m1 || "—"}</DTD>
-          <DTD>{cd2?.r1?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(1), ...hov }}>
-          <DTD>2. Curing Cycle Follow</DTD>
-          <DTD>Temp and Duration</DTD>
-          <DTD>{cd2?.r2?.m1 || "—"}</DTD>
-          <DTD>{cd2?.r2?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(0), ...hov }}>
-          <DTD>3. Soaking</DTD>
-          <DTD>Temp and Duration</DTD>
-          <DTD>{cd2?.r3?.m1 || "—"}</DTD>
-          <DTD>{cd2?.r3?.m2 || "—"}</DTD>
-        </TableRow>
-
-        <TableRow sx={{ background: rowBg(1), ...hov }}>
-          <DTD>4. Hardness</DTD>
-          <DTD>Shore A Hardness</DTD>
-          <DTD>{cd2?.r4?.m1 || "—"}</DTD>
-          <DTD>{cd2?.r4?.m2 || "—"}</DTD>
-        </TableRow>
-      </TableBody>
-    </Table>
-  </TableContainer>
+const DetailRowSmall = ({ label, value }) => (
+  <Stack direction="row" sx={{ py: 0.2 }}>
+    <Typography sx={{ minWidth: 160, fontSize: "0.7rem", fontWeight: 700, color: BRAND.textSub }}>{label}</Typography>
+    <Typography sx={{ fontSize: "0.72rem", color: BRAND.text }}>{value != null ? String(value) : "—"}</Typography>
+  </Stack>
 );
 
 // ─── Detail Dialog ────────────────────────────────────────────────────────────
-const CastingCuringDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
+const CastingCuringDetailDialog = ({ open, onClose, item, detailData, detailsLoading, onApprove, onReject }) => {
   const [pdfOpen, setPdfOpen] = useState(false);
   if (!item) return null;
 
-  const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const detail = detailData ?? item;
+  const motors = detail?.motors ?? [];
+  const motorIds = motors.map((m) => m.motorId).filter(Boolean);
 
   return (
     <>
       <Dialog
         open={open}
         onClose={onClose}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
@@ -450,7 +445,7 @@ const CastingCuringDetailDialog = ({ open, onClose, item, onApprove, onReject })
           },
         }}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <Box
           sx={{
             p: "14px 20px",
@@ -468,12 +463,14 @@ const CastingCuringDetailDialog = ({ open, onClose, item, onApprove, onReject })
                 Casting & Curing Record
               </Typography>
               <Typography sx={{ color: alpha("#fff", 0.7), fontSize: "0.72rem" }}>
-                {item.batchId} · {item.motorId}
+                {item.batchId} · {item.formId}
+                {detailsLoading ? " · loading…" : ""}
               </Typography>
             </Box>
           </Stack>
 
           <Stack direction="row" gap={1} alignItems="center">
+            {detailsLoading && <CircularProgress size={16} sx={{ color: alpha("#fff", 0.7) }} />}
             <Chip
               label={item.priority}
               size="small"
@@ -498,70 +495,239 @@ const CastingCuringDetailDialog = ({ open, onClose, item, onApprove, onReject })
                 textTransform: "none",
                 px: 1.6,
                 py: "5px",
+                whiteSpace: "nowrap",
                 background: alpha("#fff", 0.18),
                 color: "#fff",
                 border: `1px solid ${alpha("#fff", 0.3)}`,
                 backdropFilter: "blur(8px)",
-                "&:hover": { background: alpha("#fff", 0.28) },
+                "&:hover": { background: alpha("#fff", 0.28), boxShadow: "none" },
+                boxShadow: "none",
               }}
             >
               View as PDF
             </Button>
-            <IconButton onClick={onClose} size="small" sx={{ color: alpha("#fff", 0.8) }}>
+            <IconButton
+              onClick={onClose}
+              size="small"
+              sx={{ color: alpha("#fff", 0.8), "&:hover": { background: alpha("#fff", 0.1) } }}
+            >
               <CloseRoundedIcon fontSize="small" />
             </IconButton>
           </Stack>
         </Box>
 
-        {/* Motor IDs strip */}
-        <Box
-          sx={{
-            px: 2.5,
-            py: 1,
-            background: alpha(BRAND.cc, 0.04),
-            borderBottom: `1px solid ${BRAND.border}`,
-            flexShrink: 0,
-          }}
-        >
-          <Stack direction="row" gap={4} alignItems="center" flexWrap="wrap">
-            <Stack direction="row" gap={0.7} alignItems="center">
-              <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: BRAND.textSub }}>
-                Bowl Motor Nos:
-              </Typography>
-              <Chip label={item.bowl?.motorIds?.m1 || "—"} size="small" color="primary" />
-              <Chip label={item.bowl?.motorIds?.m2 || "—"} size="small" color="primary" />
+        {/* ── Motor ID strip ── */}
+        {motorIds.length > 0 && (
+          <Box
+            sx={{
+              px: 2.5,
+              py: 1,
+              background: alpha(BRAND.cc, 0.04),
+              borderBottom: `1px solid ${BRAND.border}`,
+              flexShrink: 0,
+            }}
+          >
+            <Stack direction="row" gap={3} alignItems="center" flexWrap="wrap">
+              <Stack direction="row" gap={0.7} alignItems="center">
+                <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: BRAND.textSub }}>Motor IDs:</Typography>
+                {motorIds.map((id) => (
+                  <Chip
+                    key={id}
+                    label={id}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      background: alpha(BRAND.cc, 0.08),
+                      color: BRAND.cc,
+                      border: `1px solid ${alpha(BRAND.cc, 0.22)}`,
+                    }}
+                  />
+                ))}
+              </Stack>
+              {motors.some((m) => m.motorStage != null) && (
+                <Stack direction="row" gap={0.7} alignItems="center">
+                  <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: BRAND.textSub }}>Stages:</Typography>
+                  {motors.map(
+                    (m) =>
+                      m.motorStage != null && (
+                        <Chip
+                          key={m.motorId}
+                          label={`Stage ${m.motorStage}`}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            background: alpha(BRAND.ccLight, 0.1),
+                            color: BRAND.ccLight,
+                            border: `1px solid ${alpha(BRAND.ccLight, 0.22)}`,
+                          }}
+                        />
+                      ),
+                  )}
+                </Stack>
+              )}
             </Stack>
-            <Stack direction="row" gap={0.7} alignItems="center">
-              <Typography sx={{ fontSize: "0.68rem", fontWeight: 700, color: BRAND.textSub }}>
-                Casting / Curing Motor Nos:
+          </Box>
+        )}
+
+        {/* ── Content ── */}
+        <DialogContent sx={{ p: 2.5, overflowY: "auto", background: BRAND.surface }}>
+          {detailsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : !motors.length ? (
+            <Box sx={{ p: 3, textAlign: "center" }}>
+              <Typography sx={{ fontSize: "0.82rem", color: BRAND.textSub }}>
+                No motor data available for this submission.
               </Typography>
-              <Chip label={item.curingDetails?.motorIds?.m1 || "—"} size="small" color="primary" />
-              <Chip label={item.curingDetails?.motorIds?.m2 || "—"} size="small" color="primary" />
+            </Box>
+          ) : (
+            <Stack spacing={3}>
+              {/* ── Batch Info ── */}
+              <Box
+                sx={{
+                  borderRadius: "8px",
+                  border: `1px solid ${BRAND.border}`,
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                <Box
+                  sx={{ px: 2, py: 1, background: alpha(BRAND.cc, 0.04), borderBottom: `1px solid ${BRAND.border}` }}
+                >
+                  <Typography sx={{ fontWeight: 800, fontSize: "0.75rem", color: BRAND.cc }}>
+                    Batch Information
+                  </Typography>
+                </Box>
+                <Box sx={{ p: 2 }}>
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                        Batch ID
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                        {item.batchId}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                        Form ID
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                        {item.formId}
+                      </Typography>
+                    </Stack>
+                    {detail.project?.projectId && (
+                      <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Project ID
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {detail.project.projectId}
+                        </Typography>
+                      </Stack>
+                    )}
+                    {detail.project?.projectName && (
+                      <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Project Name
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {detail.project.projectName}
+                        </Typography>
+                      </Stack>
+                    )}
+                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                        Priority
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                        {item.priority}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                        Status
+                      </Typography>
+                      <StatusChip status={item.status} />
+                    </Stack>
+                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                        Submitted By
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                        {item.submittedBy}
+                      </Typography>
+                    </Stack>
+                    {detail.createdBy && (
+                      <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Created By
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {detail.createdBy}
+                        </Typography>
+                      </Stack>
+                    )}
+                    {detail.createdAt && (
+                      <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Created At
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {new Date(detail.createdAt).toLocaleString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Typography>
+                      </Stack>
+                    )}
+                    {detail.lastUpdatedBy && (
+                      <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Last Updated By
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {detail.lastUpdatedBy}
+                        </Typography>
+                      </Stack>
+                    )}
+                    {detail.lastUpdatedAt && (
+                      <Stack direction="row" sx={{ py: 0.3 }}>
+                        <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
+                          Last Updated At
+                        </Typography>
+                        <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
+                          {new Date(detail.lastUpdatedAt).toLocaleString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+
+              {/* ── Motor sections ── */}
+              {motors.map((motor, i) => (
+                <MotorSectionsCard key={motor.motorId ?? i} motor={motor} index={i} />
+              ))}
             </Stack>
-          </Stack>
-        </Box>
-
-        {/* Content */}
-        <DialogContent sx={{ p: 2.8, overflowY: "auto", background: BRAND.surface }}>
-          <Stack spacing={4}>
-            <Box>
-              <SectionDivider icon={ScaleRoundedIcon} label="Bowl Details" />
-              <BowlDetailsTable bowl={item.bowl} />
-            </Box>
-
-            <Box>
-              <SectionDivider icon={TimerRoundedIcon} label="Casting Details" />
-              <CastingDetailsTable cd={item.curingDetails} motorIds={item.curingDetails?.motorIds} />
-            </Box>
-
-            <Box>
-              <SectionDivider icon={ThermostatRoundedIcon} label="Curing Details" />
-              <CuringDetailsTable cd2={item.curingDetails2} motorIds={item.curingDetails2?.motorIds} />
-            </Box>
-          </Stack>
+          )}
         </DialogContent>
 
-        {/* Footer */}
+        {/* ── Footer ── */}
         <Box
           sx={{
             p: "12px 20px",
@@ -612,14 +778,41 @@ const CastingCuringDetailDialog = ({ open, onClose, item, onApprove, onReject })
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const CastingCuringApproverPage = () => {
-  const [items, setItems] = useState(MOCK_CC_SUBMISSIONS);
+  const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+
   const { dialogProps, requestApprove, requestReject } = useApproverFormAction({
     department: "manufacturing",
     setItems,
     setSelected,
     subDepartment: "casting-and-curing",
   });
+
+  const handleViewDetails = useCallback(async (row) => {
+    setSelected(row);
+    setDetailData(null);
+    setDetailsLoading(true);
+    try {
+      const response = await castingCuringController.fetchFormDetails({
+        formId: row.formId,
+        subDepartmentId: 6,
+      });
+      if (response?.success && response?.data) {
+        setDetailData(response.data);
+      }
+    } catch {
+      setDetailData(null);
+    } finally {
+      setDetailsLoading(false);
+    }
+  }, []);
+
+  const closeDetails = useCallback(() => {
+    setSelected(null);
+    setDetailData(null);
+  }, []);
 
   return (
     <ApproverList
@@ -631,7 +824,7 @@ const CastingCuringApproverPage = () => {
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
         { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
-        { field: "motorType", label: "Type", options: ["A", "B", "C"] },
+        { field: "motorStage", label: "Type", options: ["A", "B", "C"] },
       ]}
     >
       {(filtered) => (
@@ -652,7 +845,6 @@ const CastingCuringApproverPage = () => {
                     <TH>Batch ID</TH>
                     <TH>Motor ID</TH>
                     <TH>Type</TH>
-                    <TH>Bowl Motor Nos</TH>
                     <TH>Submitted By</TH>
                     <TH>Date</TH>
                     <TH>Priority</TH>
@@ -679,7 +871,7 @@ const CastingCuringApproverPage = () => {
                       <TD sx={{ fontSize: "0.78rem", color: BRAND.textSub }}>{row.motorId}</TD>
                       <TD>
                         <Chip
-                          label={`Type ${row.motorType}`}
+                          label={`Type ${row.motorStage ?? row.motorType ?? ""}`}
                           size="small"
                           sx={{
                             background: alpha(BRAND.ccLight, 0.1),
@@ -687,12 +879,6 @@ const CastingCuringApproverPage = () => {
                             border: `1px solid ${alpha(BRAND.ccLight, 0.2)}`,
                           }}
                         />
-                      </TD>
-                      <TD>
-                        <Stack direction="row" gap={0.5}>
-                          <Chip label={row.bowl?.motorIds?.m1 || "—"} size="small" color="primary" />
-                          <Chip label={row.bowl?.motorIds?.m2 || "—"} size="small" color="primary" />
-                        </Stack>
                       </TD>
                       <TD sx={{ fontSize: "0.78rem" }}>{row.submittedBy}</TD>
                       <TD sx={{ color: BRAND.textSub, fontSize: "0.76rem" }}>
@@ -713,7 +899,7 @@ const CastingCuringApproverPage = () => {
                           size="small"
                           variant="outlined"
                           startIcon={<VisibilityRoundedIcon sx={{ fontSize: "13px !important" }} />}
-                          onClick={() => setSelected(row)}
+                          onClick={() => handleViewDetails(row)}
                           disabled={!isApproverActionableStatus(row.status)}
                           sx={{
                             borderColor: isApproverActionableStatus(row.status) ? BRAND.cc : BRAND.border,
@@ -732,8 +918,10 @@ const CastingCuringApproverPage = () => {
 
           <CastingCuringDetailDialog
             open={!!selected}
-            onClose={() => setSelected(null)}
+            onClose={closeDetails}
             item={selected}
+            detailData={detailData}
+            detailsLoading={detailsLoading}
             onApprove={requestApprove}
             onReject={requestReject}
           />

@@ -6,7 +6,7 @@ export { default as schemaEngineController } from "./controller/schemaEngineCont
 export { default } from "./controller/schemaEngineController";
 export type { SchemaFetchConfig } from "./controller/schemaEngineController";
 
-export { useSchemaFetch } from "./hooks/useSchemaFetch";
+export { useSchemaFetch, SCHEMA_LOAD_FAILED_MESSAGE } from "./hooks/useSchemaFetch";
 export { useSchemaForm } from "./hooks/useSchemaForm";
 
 export * from "./types";
@@ -21,6 +21,12 @@ export {
 } from "./state/formState";
 
 export { parseSchemaDocument } from "./utils/schemaUtils";
+export {
+  isApiStyleSection,
+  isApiStyleSections,
+  normalizeApiSchemaSections,
+  normalizeApiSection,
+} from "./utils/apiSchemaNormalizer";
 export type { SchemaThemeTokens } from "./utils/schemaUtils";
 export { defaultThemeTokens, mergeThemeFromDesignSystem } from "./utils/schemaUtils";
 
@@ -122,12 +128,28 @@ export {
   PC_SCHEMA_VERSION,
   postCureSchemaFetchConfig,
   buildPostCureSchemaRequest,
+  fetchPostCureSchema,
   createPostCureInitialValues,
   hydratePostCureValuesFromSections,
   buildPostCureSectionPayload,
 } from "./adapters/postCure.adapter";
 
 export type { PostCureSchemaRequestParams } from "./adapters/postCure.adapter";
+
+export {
+  SS_SCHEMA_FUNCTIONALITY,
+  SS_SCHEMA_TYPE,
+  SS_SCHEMA_VERSION,
+  subscaleSchemaFetchConfig,
+  buildSubscaleSchemaRequest,
+  mapSubscaleBatchType,
+  fetchSubscaleSchema,
+  createSubscaleInitialValues,
+  hydrateSubscaleValuesFromSections,
+  buildSubscaleSectionPayload,
+} from "./adapters/subscale.adapter";
+
+export type { SubscaleBatchType } from "./adapters/subscale.adapter";
 
 /** Back-compat alias */
 export { default as schemaManagementController } from "./controller/schemaEngineController";

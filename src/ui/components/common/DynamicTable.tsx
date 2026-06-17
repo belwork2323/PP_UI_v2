@@ -21,6 +21,7 @@ import {
 import SchemaApiDropdown from "./SchemaApiDropdown";
 import { DateField, DateTimeField, TimeField } from "./DateField";
 import FormulaCell from "./FormulaCell";
+import FileUploadButton from "./FileUploadButton";
 
 type DynamicTableProps = {
   config: SchemaTableBlock;
@@ -133,6 +134,30 @@ const renderCellEditor = (
       return <TimeField value={value} onChange={onChange} disabled={readOnly} />;
     case "datetime":
       return <DateTimeField value={value} onChange={onChange} disabled={readOnly} />;
+    case "textarea":
+      return (
+        <TextField
+          size="small"
+          fullWidth
+          multiline
+          minRows={2}
+          value={value}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.target.value)}
+          inputProps={{ style: { fontSize: "0.78rem" } }}
+          sx={{ minWidth: 140 }}
+        />
+      );
+    case "file":
+      return (
+        <FileUploadButton
+          label={value || "Choose File"}
+          icon={undefined}
+          accept={undefined}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.target.files?.[0]?.name ?? "")}
+        />
+      );
     case "number":
     case "decimal":
       return (

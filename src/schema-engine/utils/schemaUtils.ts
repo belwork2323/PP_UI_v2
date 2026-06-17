@@ -2,12 +2,18 @@ import type {
   SchemaBlock,
   SchemaDocumentV2,
   SchemaFieldBlock,
+  SchemaMeta,
   SchemaSection,
   SchemaTableBlock,
   SchemaTableColumn,
   SchemaTableColumnGroup,
   SchemaTableColumnSlot,
 } from "../types";
+import {
+  isApiStyleSections,
+  normalizeApiSchemaSections,
+  resolveSchemaRootUi,
+} from "./apiSchemaNormalizer";
 
 export const isColumnGroup = (slot: SchemaTableColumnSlot): slot is SchemaTableColumnGroup =>
   slot.type === "group";
@@ -57,11 +63,10 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
   if (!response || typeof response !== "object") return null;
 
   const root = response as Record<string, unknown>;
-
+  const isApiEnvelope = "success" in root && root.data && typeof root.data === "object";
+  const envelope = root;
   const documentRoot = (
-    "success" in root && root.data && typeof root.data === "object"
-      ? root.data
-      : root
+    isApiEnvelope ? root.data : root
   ) as Record<string, unknown>;
 
   const dataPayload = (
@@ -70,7 +75,7 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
       : documentRoot
   ) as Record<string, unknown>;
 
-  const sections = Array.isArray(dataPayload.sections)
+  const rawSections = Array.isArray(dataPayload.sections)
     ? dataPayload.sections
     : Array.isArray(documentRoot.sections)
       ? documentRoot.sections
@@ -78,21 +83,40 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
         ? root.sections
         : null;
 
-  if (!sections) return null;
+  if (!rawSections) return null;
+
+  const sections = isApiStyleSections(rawSections)
+    ? normalizeApiSchemaSections(rawSections)
+    : (rawSections as SchemaSection[]);
+
+  const meta = (dataPayload.meta ?? documentRoot.meta ?? envelope.meta ?? root.meta) as
+    | SchemaMeta
+    | undefined;
+
+  const batchType = envelope.batchType ?? documentRoot.batchType ?? dataPayload.batchType;
+  const context = {
+    ...((dataPayload.context ?? documentRoot.context ?? envelope.context ?? root.context) as
+      | Record<string, unknown>
+      | undefined),
+    ...(batchType ? { batchType } : {}),
+  };
 
   return {
     schemaVersion: String(
-      documentRoot.schemaVersion ?? root.schemaVersion ?? dataPayload.schemaVersion ?? "1.0",
+      envelope.schemaVersion ?? documentRoot.schemaVersion ?? dataPayload.schemaVersion ?? "1.0",
     ),
-    schemaType: String(documentRoot.schemaType ?? root.schemaType ?? dataPayload.schemaType ?? ""),
+    schemaType: String(
+      envelope.schemaType ?? documentRoot.schemaType ?? dataPayload.schemaType ?? "",
+    ),
     functionality: String(
-      documentRoot.functionality ?? root.functionality ?? dataPayload.functionality ?? "",
+      envelope.functionality ?? documentRoot.functionality ?? dataPayload.functionality ?? "",
     ),
-    meta: (dataPayload.meta ?? documentRoot.meta ?? root.meta) as SchemaDocumentV2["meta"],
+    meta,
     data: {
-      ui: (dataPayload.ui ?? documentRoot.ui ?? root.ui) as SchemaDocumentV2["data"]["ui"],
-      context: (dataPayload.context ?? documentRoot.context ?? root.context) as SchemaDocumentV2["data"]["context"],
-      sections: sections as SchemaSection[],
+      meta,
+      ui: resolveSchemaRootUi(dataPayload, envelope),
+      context: Object.keys(context).length > 0 ? context : undefined,
+      sections,
     },
   };
 };

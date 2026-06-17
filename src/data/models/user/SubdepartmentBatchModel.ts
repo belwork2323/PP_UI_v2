@@ -66,6 +66,7 @@ export const SUBDEPT_STATUS_FIELD: Record<string, string> = {
   mixing: "mxStatus",
   "casting-and-curing": "ccStatus",
   "post-cure-operations": "pcStatus",
+  subscale: "ssStatus",
   dispatch: "dispatchStatus",
   "raw-material-revalidation": "qcRmStatus",
   "qc-division": "qcDivStatus",

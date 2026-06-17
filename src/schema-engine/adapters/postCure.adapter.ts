@@ -1,5 +1,6 @@
 import { USER_POST_CURE_FORM_ENDPOINTS } from "../../data/api/endPoints";
 import type { SchemaFetchConfig } from "../controller/schemaEngineController";
+import schemaEngineController from "../controller/schemaEngineController";
 import {
   buildInitialFormValues,
   mergeSectionDataIntoValues,
@@ -50,3 +51,8 @@ export const buildPostCureSectionPayload = (
   schema: SchemaDocumentV2,
   values: SchemaFormValues,
 ): SchemaSectionSubmission[] => toSectionSubmissions(schema, values);
+
+export const fetchPostCureSchema = async (params: PostCureSchemaRequestParams) => {
+  const request = buildPostCureSchemaRequest(params);
+  return schemaEngineController.fetchSchema(postCureSchemaFetchConfig, request);
+};

@@ -3,7 +3,7 @@ import type { SchemaBlock, SchemaFieldBlock, SchemaGroupBlock, SchemaSectionBloc
 import type { SchemaApiContext } from "./rules/apiDependency";
 import type { SchemaThemeTokens } from "./utils/schemaUtils";
 import type { SchemaFormValues } from "./state/formState";
-import { setBlockValue, buildRepeatInstanceChildValues } from "./state/formState";
+import { setBlockValue, buildRepeatInstanceChildValues, buildTableRows } from "./state/formState";
 import { isBlockVisible } from "./rules/visibility";
 import { resolveSchemaCountToken, type SchemaSetupContext } from "./utils/setupContext";
 import { resolveBlockLayoutSx, resolveFullWidthBlockLayoutSx, resolveGridGap } from "./utils/blockLayout";
@@ -227,19 +227,25 @@ export const BlockRenderer = ({ block, ctx }: { block: SchemaBlock; ctx: BlockRe
         </Box>
       );
     }
-    case "table":
+    case "table": {
+      const storedRows = ctx.values[block.id];
+      const rows = Array.isArray(storedRows) && storedRows.length > 0
+        ? (storedRows as Record<string, unknown>[])
+        : buildTableRows(block);
+
       return (
         <Box sx={resolveFullWidthBlockLayoutSx(block.ui)} data-custom-flex>
           <DynamicTable
             config={block}
-            rows={(Array.isArray(ctx.values[block.id]) ? ctx.values[block.id] : []) as Record<string, unknown>[]}
-            onChange={(rows) => ctx.onChange(setBlockValue(ctx.values, block.id, rows))}
+            rows={rows}
+            onChange={(nextRows) => ctx.onChange(setBlockValue(ctx.values, block.id, nextRows))}
             readOnly={ctx.readOnly}
             theme={ctx.theme}
             apiContext={ctx.apiContext}
           />
         </Box>
       );
+    }
     case "matrix": {
       const matrixValue = (ctx.values[block.id] ?? { columns: [], rows: [] }) as CuringProjectStageMatrix;
       const resolved =

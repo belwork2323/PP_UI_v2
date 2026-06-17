@@ -245,9 +245,9 @@ export const USER_MIXING_FORM_ENDPOINTS = {
 };
 
 export const USER_CASTING_CURING_FORM_ENDPOINTS = {
-  CREATE_FORM: `${API_BASE}/user/casting-curing/forms/create`,
-  FORM_DETAILS: `${API_BASE}/user/casting-curing/forms/details`,
-  UPDATE_FORM: `${API_BASE}/user/casting-curing/forms/update`,
+  CREATE_FORM: `${API_BASE}/user/casting-curing/form/create`,
+  FORM_DETAILS: `${API_BASE}/user/casting-curing/form/details`,
+  UPDATE_FORM: `${API_BASE}/user/casting-curing/form/update`,
   CASTING_SCHEMA: `${API_BASE}/user/casting-curing/schema/casting`,
   CURING_SCHEMA: `${API_BASE}/user/casting-curing/schema/curing`,
 };
@@ -257,6 +257,13 @@ export const USER_POST_CURE_FORM_ENDPOINTS = {
   FORM_DETAILS: `${API_BASE}/user/post-cure/form/details`,
   UPDATE_FORM: `${API_BASE}/user/post-cure/form/update`,
   SCHEMA: `${API_BASE}/user/post-cure/schema`,
+};
+
+export const USER_SUBSCALE_FORM_ENDPOINTS = {
+  CREATE_FORM: `${API_BASE}/user/subscale/form/create`,
+  FORM_DETAILS: `${API_BASE}/user/subscale/form/details`,
+  UPDATE_FORM: `${API_BASE}/user/subscale/form/update`,
+  SCHEMA: `${API_BASE}/user/subscale-processing/schema`,
 };
 
 export const USER_RAW_MATERIAL_REVALIDATION_ENDPOINTS = {

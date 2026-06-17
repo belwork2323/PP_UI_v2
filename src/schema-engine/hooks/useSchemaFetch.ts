@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import schemaEngineController, { type SchemaFetchConfig } from "../controller/schemaEngineController";
 import type { SchemaDocumentV2 } from "../types";
 
+export const SCHEMA_LOAD_FAILED_MESSAGE = "Schema failed to load. Please try again.";
+
 export const useSchemaFetch = (
   config: SchemaFetchConfig | null,
   requestBody: Record<string, unknown> | null,
@@ -20,7 +22,7 @@ export const useSchemaFetch = (
     setLoading(false);
 
     if (!response.success) {
-      setError(response.message ?? "Unable to load schema.");
+      setError(response.message ?? SCHEMA_LOAD_FAILED_MESSAGE);
       setSchema(null);
       return null;
     }
@@ -29,7 +31,7 @@ export const useSchemaFetch = (
       setError(
         response.data
           ? "Schema response is missing sections."
-          : response.message ?? "Unable to load schema.",
+          : response.message ?? SCHEMA_LOAD_FAILED_MESSAGE,
       );
       setSchema(null);
       return null;

@@ -73,6 +73,8 @@ export type SchemaRowsConfig = {
   allowDelete?: boolean;
   autoIncrementKey?: string;
   presetRows?: Record<string, unknown>[];
+  /** Backend table row source (e.g. CASTING_TABLE, HARDWARE_PREPARATION). */
+  rowGenerationSource?: string;
 };
 
 export type SchemaColSpan = {

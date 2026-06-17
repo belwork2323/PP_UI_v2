@@ -27,7 +27,7 @@ const columnDefault = (col: { defaultValue?: unknown; defaultValues?: unknown[] 
 };
 
 
-const buildTableRows = (table: SchemaTableBlock): Record<string, unknown>[] => {
+export const buildTableRows = (table: SchemaTableBlock): Record<string, unknown>[] => {
   const columns = flattenTableColumns(table.columns);
   const autoKey = table.rows?.autoIncrementKey ?? "srNo";
   const presetRows = table.rows?.presetRows ?? [];
@@ -109,7 +109,7 @@ const initBlockValue = (
           setupContext,
         );
       }
-      return [{}];
+      return undefined;
     case "section":
       if (block.repeat) {
         return buildRepeatInstances(
@@ -141,7 +141,11 @@ export const buildInitialFormValues = (
       return;
     }
     if (block.type === "group") {
-      values[block.id] = initBlockValue(block, setupContext);
+      if (block.repeat) {
+        values[block.id] = initBlockValue(block, setupContext);
+        return;
+      }
+      (block.children ?? []).forEach(assignBlock);
       return;
     }
     if (block.type === "field" || block.type === "table" || block.type === "matrix") {
@@ -173,7 +177,17 @@ const sanitizeSubmissionValue = (value: unknown): unknown => {
 const collectSectionRow = (blocks: SchemaBlock[], values: SchemaFormValues): Record<string, unknown> => {
   const row: Record<string, unknown> = {};
   blocks.forEach((block) => {
-    if (block.type === "field" || block.type === "table" || block.type === "matrix" || block.type === "group") {
+    if (block.type === "group") {
+      if (block.repeat) {
+        if (values[block.id] !== undefined) {
+          row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id]));
+        }
+      } else {
+        Object.assign(row, collectSectionRow(block.children ?? [], values));
+      }
+      return;
+    }
+    if (block.type === "field" || block.type === "table" || block.type === "matrix") {
       if (values[block.id] !== undefined) {
         row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id]));
       }

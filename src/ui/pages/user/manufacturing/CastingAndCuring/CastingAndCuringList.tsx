@@ -1,7 +1,8 @@
 // src/ui/pages/user/manufacturing/CastingAndCuring/CastingAndCuringList.tsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, IconButton, Stack, Tooltip, Typography, alpha } from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -36,57 +37,8 @@ export const CC_STATUS_CONFIG = {
 
 const S = STRINGS.MANUFACTURING;
 
-/** Dev-only rows prepended to the batch list for local UI testing. */
-const USE_MOCK_CC_BATCH = import.meta.env.DEV;
-
-const MOCK_CC_BATCHES = [
-  {
-    id: "mock-cc-initiated",
-    batchId: "CC-MOCK-001",
-    stage: "Casting",
-    motorId: "MTR-A-001, MTR-A-002",
-    motorIds: ["MTR-A-001", "MTR-A-002"],
-    motorType: "A",
-    motorStage: 1,
-    projectName: "Project Alpha (Mock)",
-    assignedTo: { fullName: "Mock Operator" },
-    createdOn: "2026-06-01T09:00:00Z",
-    priority: "High",
-    ccStatus: CC_STATUS.INITIATED,
-    formId: null,
-  },
-  {
-    id: "mock-cc-in-progress",
-    batchId: "CC-MOCK-002",
-    stage: "Casting & Curing",
-    motorId: "MTR-B-101, MTR-B-102",
-    motorIds: ["MTR-B-101", "MTR-B-102"],
-    motorType: "B",
-    motorStage: 1,
-    projectName: "Project Beta (Mock)",
-    assignedTo: { fullName: "Mock Operator" },
-    createdOn: "2026-06-03T11:30:00Z",
-    priority: "Medium",
-    ccStatus: CC_STATUS.IN_PROGRESS,
-    formId: "mock-cc-form-002",
-  },
-  {
-    id: "mock-cc-rejected",
-    batchId: "CC-MOCK-003",
-    stage: "Curing",
-    motorId: "MTR-C-201",
-    motorIds: ["MTR-C-201"],
-    motorType: "C",
-    motorStage: 1,
-    projectName: "Project Gamma (Mock)",
-    assignedTo: { fullName: "Mock Operator" },
-    createdOn: "2026-05-28T14:15:00Z",
-    priority: "Critical",
-    ccStatus: CC_STATUS.REJECTED,
-    formId: "mock-cc-form-003",
-    rejectionReason: "Curing cycle temperature readings incomplete.",
-  },
-] as const;
+const canViewDetails = (status: string) =>
+  Boolean(status) && status !== CC_STATUS.INITIATED;
 
 const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
   const mode = useThemeStore((state) => state.mode);
@@ -107,26 +59,12 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewCastingCuringDetails,
   } = hookState;
 
-  const displayRows = useMemo(
-    () => (USE_MOCK_CC_BATCH ? [...MOCK_CC_BATCHES, ...batches] : batches),
-    [batches],
-  );
-
-  const displayTotalRecords = USE_MOCK_CC_BATCH ? totalRecords + MOCK_CC_BATCHES.length : totalRecords;
-
-  const displayStatusCounts = useMemo(() => {
-    if (!USE_MOCK_CC_BATCH) return statusCounts;
-    const next = { ...statusCounts };
-    MOCK_CC_BATCHES.forEach((row) => {
-      const status = row.ccStatus;
-      next[status] = (next[status] ?? 0) + 1;
-      next[STRINGS.USER_BATCH_LIST.FILTER_ALL] =
-        (next[STRINGS.USER_BATCH_LIST.FILTER_ALL] ?? displayTotalRecords);
-    });
-    return next;
-  }, [statusCounts, displayTotalRecords]);
+  const displayRows = Array.isArray(batches) ? batches : [];
+  const displayTotalRecords = totalRecords ?? 0;
+  const displayStatusCounts = statusCounts ?? {};
 
   const statusConfig = useMemo(
     () =>
@@ -144,37 +82,21 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
         render: (v: string) => <Typography sx={theme.batchList.batchIdText}>{v}</Typography>,
       },
       {
-        key: "stage",
-        label: S.CASTING_CURING.COL_STAGE,
-        align: "center",
-        render: (v: string) => {
-          const cfg = getStageCfg(v);
-          return (
-            <Chip
-              icon={<ThermostatRoundedIcon sx={{ fontSize: "12px !important", color: `${cfg.color} !important` }} />}
-              label={cfg.label}
-              size="small"
-              sx={{
-                height: 22, fontSize: "0.68rem",
-                fontWeight: cfg.italic ? 500 : 700,
-                fontStyle: cfg.italic ? "italic" : "normal",
-                background: `${cfg.color}14`, color: cfg.color,
-                border: `1px solid ${cfg.color}33`, maxWidth: 160,
-              }}
-            />
-          );
-        },
-      },
-      {
         key: "motorId",
         label: S.BATCH_LIST.COL_MOTOR_ID,
         render: (v: string) => <Typography sx={theme.batchList.normalText}>{v}</Typography>,
       },
       {
-        key: "motorType",
+        key: "motorStage",
         label: S.BATCH_LIST.COL_TYPE,
         align: "center",
-        render: (v: string) => <Chip label={`${S.BATCH_LIST.MOTOR_TYPE_PREFIX}${v}`} size="small" sx={theme.batchList.batchTypeChip} />,
+        render: (v: string) => (
+          <Chip
+            label={`${S.BATCH_LIST.MOTOR_TYPE_PREFIX}${String(v ?? "")}`}
+            size="small"
+            sx={theme.batchList.batchTypeChip}
+          />
+        ),
       },
       {
         key: "assignedTo.fullName",
@@ -193,7 +115,7 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
         render: (v: string) => (
           <IconText
             icon={<CalendarMonthRoundedIcon sx={theme.batchList.icon} />}
-            text={new Date(v).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+            text={new Date(String(v ?? "")).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
             textSx={theme.batchList.subtleText}
           />
         ),
@@ -203,8 +125,9 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
         label: S.BATCH_LIST.COL_PRIORITY,
         align: "center",
         render: (v: string) => {
-          const cfg = theme.batchList.priorityConfig[v] ?? theme.batchList.priorityConfig.Medium;
-          return <Chip label={v} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }} />;
+          const str = String(v ?? "");
+          const cfg = theme.batchList.priorityConfig[str] ?? theme.batchList.priorityConfig.Medium;
+          return <Chip label={str} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }} />;
         },
       },
       {
@@ -213,7 +136,7 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
         align: "center",
         render: (v: string, row: any) => (
           <UserWorkflowStatusCell
-            status={v}
+            status={String(v ?? "")}
             statusConfig={statusConfig}
             rejectedStatus={CC_STATUS.REJECTED}
             rejectionReason={row.rejectionReason}
@@ -232,7 +155,6 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
       statusField="ccStatus"
       statusConfig={statusConfig}
       filters={[
-        { field: "stage", options: ["Casting", "Curing", "Casting & Curing", "Not Selected Yet"], label: S.CASTING_CURING.COL_STAGE },
         { field: "priority", options: ["Critical", "High", "Medium", "Low"] },
       ]}
       searchFields={["batchId", "motorId"]}
@@ -253,17 +175,36 @@ const CastingCuringList = ({ hookState, rowsPerPageOptions }: any) => {
       onStatusFilterChange={setStatusFilter}
       isLoading={loading}
       renderAction={(row: any) => (
-        <UserWorkflowStatusAction
-          status={row.ccStatus}
-          row={row}
-          statusMap={CC_STATUS}
-          onFillForm={handleFillForm}
-          onEditForm={handleEditForm}
-          theme={theme}
-          fillLabel={S.BATCH_LIST.FILL_ACTION}
-          continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
-          editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
-        />
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          {canViewDetails(row.ccStatus) ? (
+            <Tooltip title={S.BATCH_LIST.VIEW_DETAILS_TOOLTIP} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={() => handleViewCastingCuringDetails(row)}
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${alpha(theme.palette.primaryLight, 0.35)}`,
+                  borderRadius: 1.5,
+                  "&:hover": { background: alpha(theme.palette.primaryLight, 0.08) },
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.ccStatus}
+              row={row}
+              statusMap={CC_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              theme={theme}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+            />
+          )}
+        </Stack>
       )}
     />
   );

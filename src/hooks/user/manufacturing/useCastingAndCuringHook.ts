@@ -34,10 +34,11 @@ import {
   resolveMotorStage,
   canLoadCuringForm,
   type CastingCuringAddedMotor,
+  type CastingCuringMotorOption,
 } from "./castingCuringFlowConfig";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type CastingCuringBatch = {
   batchId: string;
@@ -78,6 +79,9 @@ export const useCastingAndCuringHook = () => {
   const [activeBatch, setActiveBatch] = useState<CastingCuringBatch | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loadingFormDetails, setLoadingFormDetails] = useState(false);
+  const [detailsRow, setDetailsRow] = useState<CastingCuringBatch | null>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [castingSchemaError, setCastingSchemaError] = useState<string | null>(null);
@@ -138,6 +142,9 @@ export const useCastingAndCuringHook = () => {
     setActiveBatch(null);
     setIsEditMode(false);
     setLoadingFormDetails(false);
+    setDetailsRow(null);
+    setDetailsData(null);
+    setDetailsLoading(false);
     setSchemaLoading(false);
     setSchemaError(null);
     setCastingSchemaError(null);
@@ -685,13 +692,7 @@ export const useCastingAndCuringHook = () => {
 
       const status = parseStatus(activeBatch.ccStatus);
       const isCreateFlow = status === parseStatus(CC_STATUS.INITIATED) && !activeBatch.formId;
-      const payloadBody = {
-        castingCuringDetails: mapCastingCuringFormStateToPayload({
-          ...formData,
-          castingType,
-          castingStation,
-        }),
-      };
+      const motors = mapCastingCuringFormStateToPayload(formData).motors;
 
       setActionLoading(true);
       try {
@@ -706,18 +707,23 @@ export const useCastingAndCuringHook = () => {
             batchId: activeBatch.batchId,
             subDepartmentId,
             formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
-            ...payloadBody,
+            motors,
           });
         } else {
           if (!activeBatch.formId) {
             showAlert(STRINGS.MANUFACTURING.CASTING_CURING.FORM_ID_MISSING, "error");
             return false;
           }
+          if (!activeBatch.batchId) {
+            showAlert(STRINGS.MANUFACTURING.CASTING_CURING.BATCH_ID_MISSING, "error");
+            return false;
+          }
           response = await castingCuringController.updateForm({
             formId: activeBatch.formId,
+            batchId: activeBatch.batchId,
             subDepartmentId,
-            formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
-            ...payloadBody,
+            formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
+            motors,
           });
         }
 
@@ -775,6 +781,42 @@ export const useCastingAndCuringHook = () => {
   const handleSaveDraft = useCallback(async () => submitForm("draft"), [submitForm]);
   const handleSubmit = useCallback(async () => submitForm("submit"), [submitForm]);
 
+  const handleViewCastingCuringDetails = useCallback(
+    async (row: CastingCuringBatch) => {
+      if (!row.formId) {
+        showAlert(STRINGS.MANUFACTURING.CASTING_CURING.FORM_ID_MISSING, "error");
+        return;
+      }
+      if (!subDepartmentId) {
+        showAlert(STRINGS.MANUFACTURING.CASTING_CURING.SUB_DEPARTMENT_MISSING, "error");
+        return;
+      }
+      setDetailsLoading(true);
+      const response = await castingCuringController.fetchFormDetails({
+        formId: row.formId,
+        subDepartmentId,
+      });
+      setDetailsLoading(false);
+      if (!response?.success || !response?.data) {
+        showAlert(
+          response?.message || STRINGS.MANUFACTURING.CASTING_CURING.DETAILS_FETCH_ERROR,
+          "error",
+        );
+        return;
+      }
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [showAlert, subDepartmentId],
+  );
+
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
+
   return {
     ...listParams,
     loading: listParams.loading || loadingFormDetails,
@@ -819,6 +861,11 @@ export const useCastingAndCuringHook = () => {
     handleMotorSessionChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewCastingCuringDetails,
+    handleBackFromDetails,
   };
 };
 

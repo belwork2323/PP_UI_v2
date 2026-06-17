@@ -416,6 +416,7 @@ export const icons = {
         blender: BlenderRoundedIcon,
         localFireDepartment: LocalFireDepartmentRoundedIcon,
         build: BuildRoundedIcon,
+        scale: ScaleRoundedIcon,
       },
       rawMaterialPreparation: {
         approved: CheckCircleRoundedIcon,
@@ -461,6 +462,14 @@ export const icons = {
         visibility: VisibilityRoundedIcon,
         close: CloseRoundedIcon,
         handyman: HandymanRoundedIcon,
+        pdf: PictureAsPdfRoundedIcon,
+      },
+      subscale: {
+        approved: CheckCircleRoundedIcon,
+        rejected: CancelRoundedIcon,
+        visibility: VisibilityRoundedIcon,
+        close: CloseRoundedIcon,
+        scale: ScaleRoundedIcon,
         pdf: PictureAsPdfRoundedIcon,
       },
     },
@@ -714,6 +723,31 @@ export const icons = {
           back: ArrowBackRoundedIcon,
           edit: EditRoundedIcon,
           handyman: HandymanRoundedIcon,
+        },
+      },
+
+      subscale: {
+        form: {
+          scale: ScaleRoundedIcon,
+          input: InputRoundedIcon,
+          straighten: StraightenRoundedIcon,
+        },
+        list: {
+          pending: HourglassEmptyRoundedIcon,
+          approved: CheckCircleRoundedIcon,
+          rejected: CancelRoundedIcon,
+          pendingAction: PendingActionsRoundedIcon,
+          play: PlayCircleOutlineRoundedIcon,
+          arrowForward: ArrowForwardRoundedIcon,
+          edit: EditRoundedIcon,
+          person: PersonRoundedIcon,
+          calendar: CalendarMonthRoundedIcon,
+          scale: ScaleRoundedIcon,
+        },
+        page: {
+          back: ArrowBackRoundedIcon,
+          edit: EditRoundedIcon,
+          scale: ScaleRoundedIcon,
         },
       },
 

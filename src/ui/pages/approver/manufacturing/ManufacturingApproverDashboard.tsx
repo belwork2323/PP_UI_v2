@@ -8,6 +8,7 @@ import RawMaterialPreparationApproverPage from "./RawMaterialPreparationApprover
 import CasePreparationApproverPage from "./CasePreparationApproverPage";
 import CastingCuringApproverPage from "./CastingAndCuringApproverPage";
 import PostCureApproverPage from "./PostCureApproverPage";
+import SubscaleApproverPage from "./SubscaleApproverPage";
 import MixingApproverPage from "./MixingApproverPage";
 
 const {
@@ -17,6 +18,7 @@ const {
   blender: BlenderRoundedIcon,
   localFireDepartment: LocalFireDepartmentRoundedIcon,
   build: BuildRoundedIcon,
+  scale: ScaleRoundedIcon,
 } = icons.approver.manufacturing.dashboard;
 
 const S = STRINGS.APPROVER.DASHBOARD.MANUFACTURING;
@@ -77,6 +79,17 @@ const SUB_DEPARTMENTS = [
     approved: 6,
     rejected: 2,
   },
+  {
+    key: "subscale",
+    label: S.SUBSCALE_LABEL,
+    sectionLabel: S.SUBSCALE_SECTION,
+    icon: ScaleRoundedIcon,
+    color: "#117A65",
+    description: S.SUBSCALE_DESCRIPTION,
+    pending: 1,
+    approved: 3,
+    rejected: 0,
+  },
 ];
 const ManufacturingApproverDashboard = () => {
   const { subDept } = useParams();
@@ -102,6 +115,8 @@ const ManufacturingApproverDashboard = () => {
             return <CastingCuringApproverPage />;
           case "post-cure-operations":
             return <PostCureApproverPage />;
+          case "subscale":
+            return <SubscaleApproverPage />;
           default:
             return null;
         }

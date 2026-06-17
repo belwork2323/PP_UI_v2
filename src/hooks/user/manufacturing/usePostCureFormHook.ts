@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  countPostCureFilled,
-  countPostCureTotal,
-  createPostCureData,
-  isPostCureInhibitionOperation,
-  mapPostCureInhibitorTypeToApi,
-  mapPostCureOperationToApi,
-} from "./postCureConfig";
+import { createPostCureData, isPostCureInhibitionOperation } from "./postCureConfig";
 import type { PostCureFormState } from "../../../data/models/user/PostCureFormModel";
 
 type PostCureData = ReturnType<typeof createPostCureData>;
@@ -17,34 +10,20 @@ export const usePostCureFormHook = (
 ) => {
   const defaults = useMemo(() => createPostCureData(), []);
 
-  const [motorId, setMotorIdState] = useState(initialData?.motorId ?? defaults.motorId);
-  const [motorReceiptDate, setMotorReceiptDateState] = useState(
-    initialData?.motorReceiptDate ?? defaults.motorReceiptDate,
-  );
-  const [operation, setOperationState] = useState(initialData?.operation ?? defaults.operation);
-  const [inhibitorType, setInhibitorTypeState] = useState(
-    initialData?.inhibitorType ?? defaults.inhibitorType,
-  );
+  const [operation, setOperationState] = useState("");
+  const [inhibitorType, setInhibitorTypeState] = useState("");
 
   useEffect(() => {
-    setMotorIdState(initialData?.motorId ?? defaults.motorId);
-    setMotorReceiptDateState(initialData?.motorReceiptDate ?? defaults.motorReceiptDate);
-    setOperationState(initialData?.operation ?? defaults.operation);
-    setInhibitorTypeState(initialData?.inhibitorType ?? defaults.inhibitorType);
+    setOperationState("");
+    setInhibitorTypeState("");
   }, [initialData, defaults]);
 
   const data = useMemo(
     () => ({
-      motorId,
-      motorReceiptDate,
-      operation,
-      inhibitorType: isPostCureInhibitionOperation(operation) ? inhibitorType : "",
       schemaFormLoaded: initialData?.schemaFormLoaded ?? false,
-      postCureSchema: initialData?.postCureSchema ?? null,
-      schemaFormValues: initialData?.schemaFormValues ?? {},
-      savedSections: initialData?.savedSections,
+      motors: initialData?.motors ?? [],
     }),
-    [motorId, motorReceiptDate, operation, inhibitorType, initialData],
+    [initialData],
   );
 
   const notify = useCallback(
@@ -54,25 +33,13 @@ export const usePostCureFormHook = (
     [onBlocksChange],
   );
 
-  const makeUpdater = useCallback(
-    <K extends keyof PostCureData>(setter: React.Dispatch<React.SetStateAction<string>>, key: K) =>
-      (value: string) => {
-        setter(value);
-        notify({ ...data, [key]: value } as PostCureData);
-      },
-    [data, notify],
-  );
-
   const setOperation = useCallback(
     (value: string) => {
       setOperationState(value);
       notify({
         ...data,
-        operation: value,
-        inhibitorType: isPostCureInhibitionOperation(value) ? data.inhibitorType : "",
         schemaFormLoaded: false,
-        postCureSchema: null,
-        schemaFormValues: {},
+        motors: [],
       });
     },
     [data, notify],
@@ -83,31 +50,21 @@ export const usePostCureFormHook = (
       setInhibitorTypeState(value);
       notify({
         ...data,
-        inhibitorType: value,
         schemaFormLoaded: false,
-        postCureSchema: null,
-        schemaFormValues: {},
+        motors: [],
       });
     },
     [data, notify],
   );
 
-  const filled = useMemo(() => countPostCureFilled(data), [data]);
-  const total = useMemo(() => countPostCureTotal(), []);
   const showInhibitionFields = isPostCureInhibitionOperation(operation);
 
   return {
-    motorId,
-    setMotorId: makeUpdater(setMotorIdState, "motorId"),
-    motorReceiptDate,
-    setMotorReceiptDate: makeUpdater(setMotorReceiptDateState, "motorReceiptDate"),
     operation,
     setOperation,
     inhibitorType,
     setInhibitorType,
     showInhibitionFields,
-    filled,
-    total,
   };
 };
 

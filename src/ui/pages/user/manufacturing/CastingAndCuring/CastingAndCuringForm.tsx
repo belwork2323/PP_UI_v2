@@ -374,7 +374,7 @@ const CastingAndCuringForm = ({
                   <CastingCuringSchemaPanel
                     schema={formData.curingSchema}
                     formValues={activeMotorSession.curingFormValues ?? formData.curingFormValues ?? {}}
-                    savedSections={formData.curingSavedSections}
+                    savedSections={activeMotorSession.curingSavedSections ?? formData.curingSavedSections}
                     subDepartmentId={subDepartmentId}
                     batchId={batch?.batchId}
                     projectId={batchProjectId || undefined}

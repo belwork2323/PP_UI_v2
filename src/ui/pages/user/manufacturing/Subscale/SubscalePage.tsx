@@ -1,24 +1,22 @@
-// src/ui/pages/user/manufacturing/PostCure/PostCurePage.tsx
-
 import React, { useMemo, useState } from "react";
 import { Box, CircularProgress, Button, Stack } from "@mui/material";
 import ConfirmAlertDialog from "../../../../components/common/ConfirmAlertDialog";
-import PostCureList from "./PostCureList";
-import PostCureForm from "./PostCureForm";
-import PostCureHeader from "./PostCureHeader";
+import SubscaleList from "./SubscaleList";
+import SubscaleForm from "./SubscaleForm";
+import SubscaleHeader from "./SubscaleHeader";
 import { useThemeStore } from "../../../../../app/store/themeStore";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
-import usePostCureHook from "../../../../../hooks/user/manufacturing/usePostCureHook";
+import useSubscaleHook from "../../../../../hooks/user/manufacturing/useSubscaleHook";
 import { STRINGS } from "../../../../../app/config/strings";
 
-const PostCurePage = () => {
+const SubscalePage = () => {
   const mode = useThemeStore((state) => state.mode);
   const theme = useMemo(() => getManufacturingTheme(mode), [mode]);
   const actionStrings = STRINGS.SOURCING.SPECIFICATION_FORM;
   const [draftConfirmOpen, setDraftConfirmOpen] = useState(false);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
 
-  const hookState = usePostCureHook();
+  const hookState = useSubscaleHook();
 
   const {
     loading,
@@ -26,31 +24,16 @@ const PostCurePage = () => {
     activeBatch,
     isEditMode,
     formData,
-    addedMotors,
-    draftMotorId,
-    draftMotorReceiptDate,
-    draftOperation,
-    draftInhibitorType,
-    usedMotorIds,
     actionLoading,
     backConfirmOpen,
     setBackConfirmOpen,
     handleBack,
     handleDiscardAndBack,
-    setDraftMotorId,
-    setDraftMotorReceiptDate,
-    handleDraftOperationChange,
-    handleDraftInhibitorTypeChange,
-    handleMotorSessionChange,
-    handleRemoveMotor,
+    handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
     schemaLoading,
     schemaError,
-    handleLoadForm,
-    handleAddMotor,
-    canLoadForm,
-    canAddMotor,
     subDepartmentId,
   } = hookState;
 
@@ -65,70 +48,55 @@ const PostCurePage = () => {
   if (view === "list") {
     return (
       <Box sx={theme.workflow.animatedContainer}>
-        <PostCureList hookState={hookState} />
+        <SubscaleList hookState={hookState} />
       </Box>
     );
   }
 
   return (
     <Box sx={theme.workflow.animatedContainer}>
-      <PostCureHeader
+      <SubscaleHeader
         batch={activeBatch}
         isEdit={isEditMode}
         onBack={handleBack}
         theme={theme}
       />
-      <PostCureForm
+      <SubscaleForm
         batch={activeBatch}
         formData={formData}
-        addedMotors={addedMotors}
-        draftMotorId={draftMotorId}
-        draftMotorReceiptDate={draftMotorReceiptDate}
-        draftOperation={draftOperation}
-        draftInhibitorType={draftInhibitorType}
-        usedMotorIds={usedMotorIds}
         subDepartmentId={subDepartmentId}
         schemaLoading={schemaLoading}
         schemaError={schemaError}
-        canLoadForm={canLoadForm}
-        canAddMotor={canAddMotor}
-        onDraftMotorIdChange={setDraftMotorId}
-        onDraftMotorReceiptDateChange={setDraftMotorReceiptDate}
-        onDraftOperationChange={handleDraftOperationChange}
-        onDraftInhibitorTypeChange={handleDraftInhibitorTypeChange}
-        onLoadForm={handleLoadForm}
-        onAddMotor={handleAddMotor}
-        onRemoveMotor={handleRemoveMotor}
-        onMotorSessionChange={handleMotorSessionChange}
+        onFormValuesChange={handleFormValuesChange}
         theme={theme}
       />
 
-      {formData.schemaFormLoaded && formData.motors.length > 0 ? (
-      <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mt={3} justifyContent="flex-end">
-        <Button
-          variant="outlined"
-          disabled={actionLoading}
-          onClick={() => setDraftConfirmOpen(true)}
-        >
-          {actionStrings.SAVE_DRAFT}
-        </Button>
-        <Button
-          variant="contained"
-          disabled={actionLoading}
-          onClick={() => setSubmitConfirmOpen(true)}
-        >
-          {isEditMode ? actionStrings.RESUBMIT_APPROVAL : actionStrings.SUBMIT_APPROVAL}
-        </Button>
-      </Stack>
+      {formData.schemaFormLoaded ? (
+        <Stack direction={{ xs: "column", sm: "row" }} gap={1.5} mt={3} justifyContent="flex-end">
+          <Button
+            variant="outlined"
+            disabled={actionLoading}
+            onClick={() => setDraftConfirmOpen(true)}
+          >
+            {actionStrings.SAVE_DRAFT}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={actionLoading}
+            onClick={() => setSubmitConfirmOpen(true)}
+          >
+            {isEditMode ? actionStrings.RESUBMIT_APPROVAL : actionStrings.SUBMIT_APPROVAL}
+          </Button>
+        </Stack>
       ) : null}
 
       <ConfirmAlertDialog
         open={backConfirmOpen}
         severity="warning"
-        title={STRINGS.MANUFACTURING.POST_CURE.UNSAVED_BACK_TITLE}
-        message={STRINGS.MANUFACTURING.POST_CURE.UNSAVED_BACK_MESSAGE}
-        confirmLabel={STRINGS.MANUFACTURING.POST_CURE.UNSAVED_BACK_DISCARD}
-        cancelLabel={STRINGS.MANUFACTURING.POST_CURE.UNSAVED_BACK_CONFIRM}
+        title={STRINGS.MANUFACTURING.SUBSCALE.UNSAVED_BACK_TITLE}
+        message={STRINGS.MANUFACTURING.SUBSCALE.UNSAVED_BACK_MESSAGE}
+        confirmLabel={STRINGS.MANUFACTURING.SUBSCALE.UNSAVED_BACK_DISCARD}
+        cancelLabel={STRINGS.MANUFACTURING.SUBSCALE.UNSAVED_BACK_CONFIRM}
         onConfirm={handleDiscardAndBack}
         onCancel={() => setBackConfirmOpen(false)}
       />
@@ -164,4 +132,4 @@ const PostCurePage = () => {
   );
 };
 
-export default PostCurePage;
+export default SubscalePage;

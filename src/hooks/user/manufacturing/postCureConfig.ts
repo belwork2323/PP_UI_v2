@@ -84,43 +84,7 @@ export const mapPostCureInhibitorTypeToApi = (
   return null;
 };
 
-export const canLoadPostCureForm = ({
-  motorId,
-  motorReceiptDate,
-  operation,
-  inhibitorType,
-  schemaFormLoaded,
-}: {
-  motorId: string;
-  motorReceiptDate: string;
-  operation: string;
-  inhibitorType: string;
-  schemaFormLoaded: boolean;
-}) => {
-  if (schemaFormLoaded) return false;
-  if (!String(motorId ?? "").trim()) return false;
-  if (!String(motorReceiptDate ?? "").trim()) return false;
-  if (!mapPostCureOperationToApi(operation)) return false;
-  if (isPostCureInhibitionOperation(operation) && !mapPostCureInhibitorTypeToApi(inhibitorType)) {
-    return false;
-  }
-  return true;
-};
-
 export const createPostCureData = () => ({
-  motorId: "",
-  motorReceiptDate: "",
-  operation: "",
-  inhibitorType: "",
   schemaFormLoaded: false,
-  postCureSchema: null as import("../../../schema-engine").SchemaDocumentV2 | null,
-  schemaFormValues: {} as import("../../../schema-engine").SchemaFormValues,
-  savedSections: undefined as import("../../../schema-engine").SchemaSectionSubmission[] | undefined,
+  motors: [] as import("../../../data/models/user/PostCureFormModel").PostCureMotorSession[],
 });
-
-const SETUP_FIELDS = ["motorId", "motorReceiptDate", "operation", "inhibitorType"] as const;
-
-export const countPostCureFilled = (data: Record<string, unknown>) =>
-  SETUP_FIELDS.filter((key) => String(data[key] ?? "").trim() !== "").length;
-
-export const countPostCureTotal = () => SETUP_FIELDS.length;

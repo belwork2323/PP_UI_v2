@@ -37,6 +37,7 @@ export type CastingCuringMotorSession = {
   curingFormValues?: SchemaFormValues;
   curingProjectStageMatrix?: CuringProjectStageMatrix;
   savedSections?: SchemaSectionSubmission[];
+  curingSavedSections?: SchemaSectionSubmission[];
 };
 
 export type CastingCuringFormState = {
@@ -53,22 +54,27 @@ export type CastingCuringFormState = {
 };
 
 export type CastingCuringFormBody = {
-  schemaVersion?: string;
-  setup: {
-    castingType: string;
-    castingStation: string;
-    initialVacuum?: string;
-    castingVacuumPressure?: string;
-    soakingVacuumPressure?: string;
-    finalMixCount?: string;
-  };
   motors: Array<{
     motorId: string;
     motorReceivedAt: string;
-    sections: SchemaSectionSubmission[];
-    curingProjectStageMatrix?: CuringProjectStageMatrix;
+    setup: {
+      castingType: string;
+      castingStation: string;
+      initialVacuum: string;
+      castingVacuumPressure: string;
+      soakingVacuumPressure: string;
+      finalMixCount: string;
+    };
+    curingSetup: {
+      oven: string;
+      curingType: string;
+      configuration: string;
+      motorsToCureCount: number | "";
+      ovensUtilized: string;
+    };
+    castingSections: SchemaSectionSubmission[];
+    curingSections: SchemaSectionSubmission[];
   }>;
-  curingSections: SchemaSectionSubmission[];
 };
 
 export const createDefaultCastingProcessSetup = (): CastingProcessSetup => ({
@@ -112,17 +118,15 @@ export const createEmptyMotorSession = (
   savedSections: undefined,
 });
 
-const resolveDetailsPayload = (details: any) =>
-  details?.castingCuringDetails ?? details?.preparationDetails ?? details ?? {};
-
 export const mapCastingCuringDetailsToFormState = (details: any): CastingCuringFormState => {
-  const payload = resolveDetailsPayload(details);
+  const payload = details?.castingCuringDetails ?? details?.preparationDetails ?? details ?? {};
   const rawMotors = Array.isArray(payload?.motors) ? payload.motors : [];
 
-  const motors = rawMotors
-    .map((motor: any) => ({
-      motorId: String(motor?.motorId ?? "").trim(),
-      motorReceivedAt: String(motor?.motorReceivedAt ?? motor?.motorReceivedDate ?? "").trim(),
+  const extractMotorData = (motor: any) => {
+    const src = motor?.details ?? motor;
+    return {
+      motorId: String(motor?.motorId ?? src?.motorId ?? "").trim(),
+      motorReceivedAt: String(src?.motorReceivedAt ?? motor?.motorReceivedAt ?? "").trim(),
       formValues: {},
       curingSetup: {
         oven: String(motor?.curingSetup?.oven ?? ""),
@@ -133,42 +137,63 @@ export const mapCastingCuringDetailsToFormState = (details: any): CastingCuringF
       },
       curingFormLoaded: Boolean(
         String(motor?.curingSetup?.oven ?? "").trim() &&
-          String(motor?.curingSetup?.curingType ?? "").trim() &&
-          String(motor?.curingSetup?.configuration ?? "").trim() &&
-          String(motor?.curingSetup?.ovensUtilized ?? "").trim(),
+        String(motor?.curingSetup?.curingType ?? "").trim() &&
+        String(motor?.curingSetup?.configuration ?? "").trim() &&
+        String(motor?.curingSetup?.ovensUtilized ?? "").trim(),
       ),
-      savedSections: Array.isArray(motor?.sections) ? motor.sections : undefined,
+      savedSections: Array.isArray(motor?.sections)
+        ? motor.sections
+        : Array.isArray(motor?.castingSections)
+          ? motor.castingSections
+          : undefined,
+      curingSavedSections: Array.isArray(motor?.curingSections) ? motor.curingSections : undefined,
       curingProjectStageMatrix: motor?.curingProjectStageMatrix ?? undefined,
-    }))
-    .filter((motor) => motor.motorId.length > 0);
-
-  const curingSections = Array.isArray(payload?.curingSections)
-    ? payload.curingSections
-    : Array.isArray(payload?.sections)
-      ? payload.sections
-      : undefined;
-
-  return {
-    castingType: String(payload?.setup?.castingType ?? payload?.castingType ?? ""),
-    castingStation: String(payload?.setup?.castingStation ?? payload?.castingStation ?? ""),
-    castingSetup: {
-      initialVacuum: String(payload?.setup?.initialVacuum ?? payload?.initialVacuum ?? ""),
-      castingVacuumPressure: String(
-        payload?.setup?.castingVacuumPressure ?? payload?.castingVacuumPressure ?? "",
-      ),
-      soakingVacuumPressure: String(
-        payload?.setup?.soakingVacuumPressure ?? payload?.soakingVacuumPressure ?? "",
-      ),
-      finalMixCount: String(payload?.setup?.finalMixCount ?? payload?.finalMixCount ?? ""),
-    },
-    castingFormLoaded: motors.length > 0,
-    readyForCuring: Boolean(curingSections?.length),
-    castingSchema: null,
-    curingSchema: null,
-    motors,
-    curingFormValues: {},
-    curingSavedSections: curingSections,
+    };
   };
+
+  const motors = rawMotors.map(extractMotorData).filter((motor) => motor.motorId.length > 0);
+
+const curingSections = Array.isArray(payload?.curingSections)
+  ? payload.curingSections
+  : motors.find((motor) => Array.isArray(motor.curingSavedSections))?.curingSavedSections;
+
+const firstMotorSetup = rawMotors.find((m: any) => m?.setup)?.setup ?? {};
+
+return {
+  castingType: String(
+    payload?.setup?.castingType ?? payload?.castingType ?? firstMotorSetup?.castingType ?? "",
+  ),
+  castingStation: String(
+    payload?.setup?.castingStation ?? payload?.castingStation ?? firstMotorSetup?.castingStation ?? "",
+  ),
+  castingSetup: {
+    initialVacuum: String(
+      payload?.setup?.initialVacuum ?? payload?.initialVacuum ?? firstMotorSetup?.initialVacuum ?? "",
+    ),
+    castingVacuumPressure: String(
+      payload?.setup?.castingVacuumPressure ??
+        payload?.castingVacuumPressure ??
+        firstMotorSetup?.castingVacuumPressure ??
+        "",
+    ),
+    soakingVacuumPressure: String(
+      payload?.setup?.soakingVacuumPressure ??
+        payload?.soakingVacuumPressure ??
+        firstMotorSetup?.soakingVacuumPressure ??
+        "",
+    ),
+    finalMixCount: String(
+      payload?.setup?.finalMixCount ?? payload?.finalMixCount ?? firstMotorSetup?.finalMixCount ?? "",
+    ),
+  },
+  castingFormLoaded: motors.length > 0,
+  readyForCuring: Boolean(curingSections?.length),
+  castingSchema: null,
+  curingSchema: null,
+  motors,
+  curingFormValues: {},
+  curingSavedSections: curingSections,
+};
 };
 
 export const hydrateCastingCuringFormState = (
@@ -183,9 +208,11 @@ export const hydrateCastingCuringFormState = (
     curingFormLoaded: Boolean(motor.curingFormLoaded),
     curingFormValues:
       curingSchema && motor.curingFormLoaded
-        ? Object.keys(motor.curingFormValues ?? {}).length > 0
-          ? motor.curingFormValues
-          : createCastingCuringInitialValues(curingSchema, setupContext)
+        ? motor.curingSavedSections?.length
+          ? hydrateCastingCuringValuesFromSections(curingSchema, motor.curingSavedSections, setupContext)
+          : Object.keys(motor.curingFormValues ?? {}).length > 0
+            ? motor.curingFormValues
+            : createCastingCuringInitialValues(curingSchema, setupContext)
         : motor.curingFormValues,
     formValues: castingSchema
       ? motor.savedSections?.length
@@ -220,33 +247,30 @@ export const mapCastingCuringFormStateToPayload = (
   const curingSchema = form.curingSchema;
 
   return {
-    schemaVersion: curingSchema?.schemaVersion ?? castingSchema?.schemaVersion,
-    setup: {
-      castingType: String(form.castingType ?? ""),
-      castingStation: String(form.castingStation ?? ""),
-      initialVacuum: String(form.castingSetup?.initialVacuum ?? ""),
-      castingVacuumPressure: String(form.castingSetup?.castingVacuumPressure ?? ""),
-      soakingVacuumPressure: String(form.castingSetup?.soakingVacuumPressure ?? ""),
-      finalMixCount: String(form.castingSetup?.finalMixCount ?? ""),
-    },
     motors: castingSchema
-      ? (form.motors ?? []).map((motor) => {
-          const matrix = motor.curingFormValues?.PROJECT_STAGE_MATRIX as
-            | CuringProjectStageMatrix
-            | undefined;
-          return {
-            motorId: motor.motorId,
-            motorReceivedAt: motor.motorReceivedAt,
-            sections: buildCastingCuringSectionPayload(castingSchema, motor.formValues),
-            ...(matrix ? { curingProjectStageMatrix: matrix } : {}),
-          };
-        })
-      : [],
-    curingSections: curingSchema
-      ? buildCastingCuringSectionPayload(
-          curingSchema,
-          form.motors?.[0]?.curingFormValues ?? form.curingFormValues,
-        )
+      ? (form.motors ?? []).map((motor) => ({
+        motorId: motor.motorId,
+        motorReceivedAt: motor.motorReceivedAt,
+        setup: {
+          castingType: String(form.castingType ?? ""),
+          castingStation: String(form.castingStation ?? ""),
+          initialVacuum: String(form.castingSetup?.initialVacuum ?? ""),
+          castingVacuumPressure: String(form.castingSetup?.castingVacuumPressure ?? ""),
+          soakingVacuumPressure: String(form.castingSetup?.soakingVacuumPressure ?? ""),
+          finalMixCount: String(form.castingSetup?.finalMixCount ?? ""),
+        },
+        curingSetup: {
+          oven: String(motor.curingSetup?.oven ?? ""),
+          curingType: String(motor.curingSetup?.curingType ?? ""),
+          configuration: String(motor.curingSetup?.configuration ?? ""),
+          motorsToCureCount: motor.curingSetup?.motorsToCureCount ?? "",
+          ovensUtilized: String(motor.curingSetup?.ovensUtilized ?? ""),
+        },
+        castingSections: buildCastingCuringSectionPayload(castingSchema, motor.formValues),
+        curingSections: curingSchema
+          ? buildCastingCuringSectionPayload(curingSchema, motor.curingFormValues ?? form.curingFormValues)
+          : [],
+      }))
       : [],
   };
 };
@@ -289,15 +313,93 @@ export class CastingCuringSubmitResponseModel {
   }
 }
 
+export type CastingCuringMotorDetail = {
+  motorId: string;
+  motorStage?: number;
+  motorReceivedAt?: string;
+  setup?: { castingType: string; castingStation: string; initialVacuum?: string; castingVacuumPressure?: string; soakingVacuumPressure?: string; finalMixCount?: string };
+  curingSetup?: { oven: string; curingType: string; configuration: string; motorsToCureCount: number | ""; ovensUtilized: string };
+  castingConfiguration?: Record<string, any>;
+  castingDetails?: Record<string, any>;
+  curingConfiguration?: Record<string, any>;
+  curingDetails?: Record<string, any>;
+  castingSections?: any[];
+  curingSections?: any[];
+};
+
+export type CastingCuringFormDetails = {
+  formId: string;
+  batchId: string;
+  subDepartmentId: number;
+  formSubmissionType: string;
+  status?: string;
+  project?: { projectId: string; projectName: string };
+  motors: CastingCuringMotorDetail[];
+  createdBy?: string;
+  createdAt?: string;
+  lastUpdatedBy?: string;
+  lastUpdatedAt?: string;
+};
+
 export class CastingCuringDetailsModel {
-  static fromApi(data: any) {
+  static fromApi(data: any): CastingCuringFormDetails {
     const payload = data?.data ?? data ?? {};
+    const details = payload.castingCuringDetails ?? payload.preparationDetails ?? payload;
+    const rawMotors = Array.isArray(details?.motors) ? details.motors : [];
+
+    const formatSub = (sub: any) => {
+      if (!sub) return "";
+      if (typeof sub === "string") return sub;
+      return String(sub?.fullName ?? sub?.name ?? sub?._id ?? "");
+    };
+
+    const formatDate = (d: any) => {
+      if (!d) return "";
+      if (typeof d === "string") return d;
+      if (d?.$date) return new Date(d.$date).toISOString();
+      return String(d);
+    };
+
     return {
-      formId: String(payload?.formId ?? ""),
-      batchId: String(payload?.batchId ?? ""),
-      subDepartmentId: Number(payload?.subDepartmentId ?? 0),
-      formSubmissionType: String(payload?.formSubmissionType ?? ""),
-      castingCuringDetails: payload?.castingCuringDetails ?? payload,
+      formId: String(details?.formId ?? payload?.formId ?? ""),
+      batchId: String(details?.batchId ?? payload?.batchId ?? ""),
+      subDepartmentId: Number(details?.subDepartmentId ?? payload?.subDepartmentId ?? 0),
+      formSubmissionType: String(details?.formSubmissionType ?? payload?.formSubmissionType ?? ""),
+      status: String(details?.status ?? payload?.status ?? ""),
+      project: details?.project ?? payload?.project
+        ? {
+          projectId: String((details?.project ?? payload?.project)?.projectId ?? ""),
+          projectName: String((details?.project ?? payload?.project)?.projectName ?? ""),
+        }
+        : undefined,
+      motors: rawMotors.map((m: any) => {
+        const src = m?.details ?? m;
+        const setup = src?.setup ?? {};
+        return {
+          motorId: String(m.motorId ?? src?.motorId ?? ""),
+          motorStage: (m.motorStage ?? src?.motorStage) != null ? Number(m.motorStage ?? src?.motorStage) : undefined,
+          motorReceivedAt: String(src?.motorReceivedAt ?? ""),
+          setup: {
+            castingType: String(setup?.castingType ?? ""),
+            castingStation: String(setup?.castingStation ?? ""),
+            initialVacuum: String(setup?.initialVacuum ?? ""),
+            castingVacuumPressure: String(setup?.castingVacuumPressure ?? ""),
+            soakingVacuumPressure: String(setup?.soakingVacuumPressure ?? ""),
+            finalMixCount: String(setup?.finalMixCount ?? ""),
+          },
+          curingSetup: src.curingSetup ?? undefined,
+          castingConfiguration: src.castingConfiguration ?? undefined,
+          castingDetails: src.castingDetails ?? undefined,
+          curingConfiguration: src.curingConfiguration ?? undefined,
+          curingDetails: src.curingDetails ?? undefined,
+          castingSections: Array.isArray(src?.castingSections) ? src.castingSections : undefined,
+          curingSections: Array.isArray(src?.curingSections) ? src.curingSections : undefined,
+        };
+      }),
+      createdBy: formatSub(details?.submittedBy ?? payload?.submittedBy),
+      createdAt: formatDate(details?.submittedAt ?? payload?.submittedAt),
+      lastUpdatedBy: formatSub(details?.updatedBy ?? payload?.updatedBy),
+      lastUpdatedAt: formatDate(details?.updatedAt ?? payload?.updatedAt),
     };
   }
 }
