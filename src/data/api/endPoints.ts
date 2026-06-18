@@ -203,7 +203,7 @@ export const USER_OPERATIONS_ENDPOINTS = {
   MOTORS_STAGE_LIST: `${API_BASE}/user/subdepartment/motors-stage-list`,
   APPROVED_MOTORS_LIST: `${API_BASE}/user/subdepartment/approved-motors-list`,
   CASTING_STATION_LIST: `${API_BASE}/user/subdepartment/casting-station`,
-  MATERIAL_LOTS: `${API_BASE}/user/post-cure/material-lots`,
+  MATERIAL_LOTS: `${API_BASE}/user/subdepartment/material-lots`,
 };
 
 export const USER_RAW_MATERIAL_PROCUREMENT_ENDPOINTS = {
@@ -266,6 +266,13 @@ export const USER_SUBSCALE_FORM_ENDPOINTS = {
   SCHEMA: `${API_BASE}/user/subscale-processing/schema`,
 };
 
+export const USER_TRIMMING_FORM_ENDPOINTS = {
+  CREATE_FORM: `${API_BASE}/user/trimming/form/create`,
+  FORM_DETAILS: `${API_BASE}/user/trimming/form/details`,
+  UPDATE_FORM: `${API_BASE}/user/trimming/form/update`,
+  SCHEMA: `${API_BASE}/user/trimming/schema`,
+};
+
 export const USER_RAW_MATERIAL_REVALIDATION_ENDPOINTS = {
   CREATE_FORM: `${API_BASE}/user/raw-material-revalidation/form/create`,
   FORM_DETAILS: `${API_BASE}/user/raw-material-revalidation/form/details`,
@@ -285,12 +292,14 @@ export const USER_NDT_ENDPOINTS = {
 };
 
 export const USER_STF_ENDPOINTS = {
+  SCHEMA: `${API_BASE}/user/stf/schema`,
   CREATE_FORM: `${API_BASE}/user/stf/form/create`,
   FORM_DETAILS: `${API_BASE}/user/stf/form/details`,
   UPDATE_FORM: `${API_BASE}/user/stf/form/update`,
 };
 
 export const USER_DISPATCH_ENDPOINTS = {
+  SCHEMA: `${API_BASE}/user/dispatch/schema`,
   CREATE_FORM: `${API_BASE}/user/dispatch/form/create`,
   FORM_DETAILS: `${API_BASE}/user/dispatch/form/details`,
   UPDATE_FORM: `${API_BASE}/user/dispatch/form/update`,

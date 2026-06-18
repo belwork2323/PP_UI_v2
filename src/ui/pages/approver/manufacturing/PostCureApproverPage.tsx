@@ -27,7 +27,7 @@ import ApproverActionDialog from "../../../components/custom/ApproverActionDialo
 import { icons } from "../../../../app/theme/icons";
 import { APPROVER_PRIORITY_META, APPROVER_STATUS_META, isApproverActionableStatus } from "../../../../app/theme/approver";
 import useApproverFormAction from "../../../../hooks/approver/useApproverFormAction";
-
+import { fetchPostCureFormDetailsApi } from "../../../../data/api/users/manufacturing/postCureFormApi";
 const {
   approved: CheckCircleRoundedIcon,
   rejected: CancelRoundedIcon,
@@ -67,31 +67,7 @@ export const PC_STATUS_META = APPROVER_STATUS_META;
 const PRIORITY_META = APPROVER_PRIORITY_META;
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_PC_SUBMISSIONS = [
-  {
-    id: 1,
-    batchId: "PC-2025-119",
-    motorId: "MFG-SRM-2025-187",
-    motorType: "A",
-    status: "Pending",
-    priority: "High",
-    submittedBy: "karthik.venkat",
-    createdOn: "2025-03-12T10:15:00",
 
-    motorNo: "PC-M187",
-    r1: "420 kg",
-    r2: "48 × 12 mm",
-    r3a: "No foreign material observed",
-    r3b1: "2.45 kg / 12-03-2025",
-    r3b2: "2.38 kg / 12-03-2025",
-    r3b3: "4.83 kg",
-    r4a: "HT-704 Silicone",
-    r4b1: "0.92 kg / 12-03-2025",
-    r4b2: "0.89 kg / 12-03-2025",
-    r4b3: "1.81 kg",
-  },
-  // ... more entries can be added
-];
 
 // ─── Styled components ────────────────────────────────────────────────────────
 const TH = styled(TableCell)({
@@ -463,7 +439,7 @@ const PostCureDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const PostCureApproverPage = () => {
-  const [items, setItems] = useState(MOCK_PC_SUBMISSIONS);
+  const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
   const { dialogProps, requestApprove, requestReject } = useApproverFormAction({
     department: "manufacturing",

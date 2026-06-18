@@ -19,7 +19,7 @@ const FormulaCell = ({ value, unit, color }: FormulaCellProps) => {
         lineHeight: 1.45,
       }}
     >
-      {display || "—"}
+      {display || ""}
     </Typography>
   );
 };

@@ -151,5 +151,48 @@ export {
 
 export type { SubscaleBatchType } from "./adapters/subscale.adapter";
 
+export {
+  TR_SCHEMA_FUNCTIONALITY,
+  TR_SCHEMA_TYPE,
+  TR_SCHEMA_VERSION,
+  trimmingSchemaFetchConfig,
+  buildTrimmingSchemaRequest,
+  mapTrimmingMotorStage,
+  resolveTrimmingMotorStage,
+  resolveTrimmingMotorStageNumber,
+  resolveTrimmingMotorStageForApi,
+  fetchTrimmingSchema,
+  createTrimmingInitialValues,
+  hydrateTrimmingValuesFromSections,
+  buildTrimmingSectionPayload,
+} from "./adapters/trimming.adapter";
+
+export {
+  STF_SCHEMA_FUNCTIONALITY,
+  STF_SCHEMA_TYPE,
+  STF_SCHEMA_VERSION,
+  stfSchemaFetchConfig,
+  buildStfSchemaRequest,
+  mapStfSubType,
+  fetchStfSchema,
+  createStfInitialValues,
+  hydrateStfValuesFromSections,
+  buildStfSectionPayload,
+} from "./adapters/stf.adapter";
+
+export type { StfSubType } from "./adapters/stf.adapter";
+
+export {
+  DISPATCH_SCHEMA_FUNCTIONALITY,
+  DISPATCH_SCHEMA_TYPE,
+  DISPATCH_SCHEMA_VERSION,
+  dispatchSchemaFetchConfig,
+  buildDispatchSchemaRequest,
+  fetchDispatchSchema,
+  createDispatchInitialValues,
+  hydrateDispatchValuesFromSections,
+  buildDispatchSectionPayload,
+} from "./adapters/dispatch.adapter";
+
 /** Back-compat alias */
 export { default as schemaManagementController } from "./controller/schemaEngineController";

@@ -86,11 +86,15 @@ export class SubscaleDetailsModel {
     const payload = data?.data ?? data ?? {};
 
     return {
-      formId: String(payload?.formId ?? ""),
+      formId: String(payload?.formId ?? payload?.subscaleProcessingId ?? ""),
       batchId: String(payload?.batchId ?? ""),
       subDepartmentId: Number(payload?.subDepartmentId ?? 0),
       formSubmissionType: String(payload?.formSubmissionType ?? ""),
-      sections: Array.isArray(payload?.sections) ? payload.sections : undefined,
+      sections: Array.isArray(payload?.sections)
+        ? payload.sections
+        : Array.isArray(payload?.details?.sections)
+          ? payload.details.sections
+          : undefined,
     };
   }
 }

@@ -124,7 +124,7 @@ export const mapCasePreparationFormStateToPayload = (
   }
 
   const motors = (form.motors ?? []).map((motor) =>
-    buildCasePrepMotorSubmission(schema, motor.motorId, motor.prrcClearanceDate, motor.formValues)
+    buildCasePrepMotorSubmission(motor.motorId, motor.prrcClearanceDate, schema, motor.formValues)
   );
 
   return {

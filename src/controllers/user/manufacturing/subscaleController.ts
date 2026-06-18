@@ -1,8 +1,8 @@
 import { ApiResponseModel } from "../../../data/models/common/ApiResponseModel";
+import type { SchemaSectionSubmission } from "../../../schema-engine";
 import {
   SubscaleDetailsModel,
   SubscaleSubmitResponseModel,
-  type SubscaleFormBody,
 } from "../../../data/models/user/SubscaleFormModel";
 import {
   createSubscaleFormApi,
@@ -12,15 +12,20 @@ import {
 
 export type SubscaleCreatePayload = {
   batchId: string;
+  batchType: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-} & SubscaleFormBody;
+  sections: SchemaSectionSubmission[];
+};
 
 export type SubscaleUpdatePayload = {
   formId: string;
+  batchId: string;
+  batchType: string;
   subDepartmentId: number;
-  formSubmissionType: "DRAFT" | "UPDATE";
-} & SubscaleFormBody;
+  formSubmissionType: "DRAFT" | "SUBMIT";
+  sections: SchemaSectionSubmission[];
+};
 
 export type SubscaleDetailsPayload = {
   formId: string;

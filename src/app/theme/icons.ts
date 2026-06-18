@@ -417,6 +417,7 @@ export const icons = {
         localFireDepartment: LocalFireDepartmentRoundedIcon,
         build: BuildRoundedIcon,
         scale: ScaleRoundedIcon,
+        straighten: StraightenRoundedIcon,
       },
       rawMaterialPreparation: {
         approved: CheckCircleRoundedIcon,
@@ -470,6 +471,14 @@ export const icons = {
         visibility: VisibilityRoundedIcon,
         close: CloseRoundedIcon,
         scale: ScaleRoundedIcon,
+        pdf: PictureAsPdfRoundedIcon,
+      },
+      trimming: {
+        approved: CheckCircleRoundedIcon,
+        rejected: CancelRoundedIcon,
+        visibility: VisibilityRoundedIcon,
+        close: CloseRoundedIcon,
+        straighten: StraightenRoundedIcon,
         pdf: PictureAsPdfRoundedIcon,
       },
     },
@@ -748,6 +757,30 @@ export const icons = {
           back: ArrowBackRoundedIcon,
           edit: EditRoundedIcon,
           scale: ScaleRoundedIcon,
+        },
+      },
+
+      trimming: {
+        form: {
+          straighten: StraightenRoundedIcon,
+          input: InputRoundedIcon,
+        },
+        list: {
+          pending: HourglassEmptyRoundedIcon,
+          approved: CheckCircleRoundedIcon,
+          rejected: CancelRoundedIcon,
+          pendingAction: PendingActionsRoundedIcon,
+          play: PlayCircleOutlineRoundedIcon,
+          arrowForward: ArrowForwardRoundedIcon,
+          edit: EditRoundedIcon,
+          person: PersonRoundedIcon,
+          calendar: CalendarMonthRoundedIcon,
+          straighten: StraightenRoundedIcon,
+        },
+        page: {
+          back: ArrowBackRoundedIcon,
+          edit: EditRoundedIcon,
+          straighten: StraightenRoundedIcon,
         },
       },
 

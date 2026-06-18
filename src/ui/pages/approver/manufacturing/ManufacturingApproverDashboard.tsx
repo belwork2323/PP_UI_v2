@@ -9,6 +9,7 @@ import CasePreparationApproverPage from "./CasePreparationApproverPage";
 import CastingCuringApproverPage from "./CastingAndCuringApproverPage";
 import PostCureApproverPage from "./PostCureApproverPage";
 import SubscaleApproverPage from "./SubscaleApproverPage";
+import TrimmingApproverPage from "./TrimmingApproverPage";
 import MixingApproverPage from "./MixingApproverPage";
 
 const {
@@ -19,6 +20,7 @@ const {
   localFireDepartment: LocalFireDepartmentRoundedIcon,
   build: BuildRoundedIcon,
   scale: ScaleRoundedIcon,
+  straighten: StraightenRoundedIcon,
 } = icons.approver.manufacturing.dashboard;
 
 const S = STRINGS.APPROVER.DASHBOARD.MANUFACTURING;
@@ -90,6 +92,17 @@ const SUB_DEPARTMENTS = [
     approved: 3,
     rejected: 0,
   },
+  {
+    key: "trimming",
+    label: S.TRIMMING_LABEL,
+    sectionLabel: S.TRIMMING_SECTION,
+    icon: StraightenRoundedIcon,
+    color: "#6A1B9A",
+    description: S.TRIMMING_DESCRIPTION,
+    pending: 2,
+    approved: 2,
+    rejected: 0,
+  },
 ];
 const ManufacturingApproverDashboard = () => {
   const { subDept } = useParams();
@@ -117,6 +130,8 @@ const ManufacturingApproverDashboard = () => {
             return <PostCureApproverPage />;
           case "subscale":
             return <SubscaleApproverPage />;
+          case "trimming":
+            return <TrimmingApproverPage />;
           default:
             return null;
         }

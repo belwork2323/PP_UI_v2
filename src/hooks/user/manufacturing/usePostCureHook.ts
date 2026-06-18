@@ -20,7 +20,7 @@ import { canAddPostCureMotor, canLoadPostCureForm, type PostCureAddedMotor } fro
 import { MANUFACTURING_STATUS } from "./manufacturingWorkflowData";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type PostCureBatch = {
   batchId: string;
@@ -77,6 +77,9 @@ export const usePostCureHook = () => {
   const [draftMotorReceiptDate, setDraftMotorReceiptDate] = useState("");
   const [draftOperation, setDraftOperation] = useState("");
   const [draftInhibitorType, setDraftInhibitorType] = useState("");
+  const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const clearSetupDrafts = useCallback(() => {
     setDraftMotorId("");
@@ -95,6 +98,9 @@ export const usePostCureHook = () => {
     const defaults = createDefaultPostCureFormState();
     setView("list");
     setActiveBatch(null);
+    setDetailsRow(null);
+    setDetailsData(null);
+    setDetailsLoading(false);
     setIsEditMode(false);
     setLoadingFormDetails(false);
     setSchemaLoading(false);
@@ -192,7 +198,7 @@ export const usePostCureHook = () => {
         setLoadingFormDetails(true);
         const detailsResponse = await postCureController.fetchFormDetails({
           formId: batch.formId,
-          subDepartmentId,
+          // subDepartmentId,
         });
         setLoadingFormDetails(false);
 
@@ -229,7 +235,34 @@ export const usePostCureHook = () => {
     },
     [showAlert, subDepartmentId, hydrateMotorsWithSchemas, clearSetupDrafts],
   );
+  const handleViewPostCureDetails = useCallback(
+    async (row: any) => {
+      if (!row?.formId) return;
 
+      setDetailsLoading(true);
+
+      try {
+        const response =
+          await postCureController.fetchFormDetails({
+            formId: row.formId,
+          });
+
+        if (response?.success) {
+          setDetailsRow(row);
+          setDetailsData(response.data);
+          setView("details");
+        }
+      } finally {
+        setDetailsLoading(false);
+      }
+    },
+    [],
+  );
+  const handleBackFromDetails = useCallback(() => {
+  setDetailsRow(null);
+  setDetailsData(null);
+  setView("list");
+}, []);
   const handleFillForm = useCallback(
     async (batch: PostCureBatch) => await openFormWithResolvedData(batch, false),
     [openFormWithResolvedData],
@@ -405,7 +438,18 @@ export const usePostCureHook = () => {
       const status = parseStatus(activeBatch.pcStatus);
       const isCreateFlow = status === parseStatus(PC_STATUS.INITIATED) && !activeBatch.formId;
       const payloadBody = mapPostCureFormStateToPayload(formData);
+      const firstMotor = formData.motors[0];
 
+      const operationType = mapPostCureOperationToApi(
+        firstMotor.operation
+      );
+
+      const inhibitorType =
+        isPostCureInhibitionOperation(firstMotor.operation)
+          ? mapPostCureInhibitorTypeToApi(firstMotor.inhibitorType)
+          : undefined;
+
+          
       setActionLoading(true);
       try {
         let response: any;
@@ -419,6 +463,9 @@ export const usePostCureHook = () => {
             batchId: activeBatch.batchId,
             subDepartmentId,
             formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
+            operationType,
+            ...(inhibitorType ? { inhibitorType } : {}),
+
             ...payloadBody,
           });
         } else {
@@ -427,11 +474,20 @@ export const usePostCureHook = () => {
             return false;
           }
           response = await postCureController.updateForm({
-            formId: activeBatch.formId,
-            subDepartmentId,
-            formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
-            ...payloadBody,
-          });
+          formId: activeBatch.formId,
+          batchId: activeBatch.batchId,
+
+          subDepartmentId,
+
+          formSubmissionType:
+            intent === "draft" ? "DRAFT" : "SUBMIT",
+
+          operationType,
+
+          ...(inhibitorType ? { inhibitorType } : {}),
+
+          ...payloadBody,
+        });
         }
 
         if (!response?.success) {
@@ -547,6 +603,11 @@ export const usePostCureHook = () => {
     handleAddMotor,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewPostCureDetails,
+    handleBackFromDetails,
   };
 };
 

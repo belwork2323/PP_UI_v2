@@ -17,6 +17,7 @@ export const useManufacturingDashboardHook = () => {
       isCastingAndCuringFlow: subDeptKey === "casting-and-curing",
       isPostCureFlow: subDeptKey === "post-cure-operations",
       isSubscaleFlow: subDeptKey === "subscale",
+      isTrimmingFlow: subDeptKey === "trimming",
     };
   }, [subDept]);
 };

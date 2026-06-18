@@ -9,40 +9,40 @@ import {
   updateDispatchFormApi,
 } from "../../../data/api/users/dispatch/dispatchAPI";
 
-export type DispatchSupportingFilePayload = {
-  name: string;
-  filePath: string;
-  fileType: string;
-};
-
 export type DispatchCreatePayload = {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-  castingDate: string;
-  finalWeight: string;
-  waiversIfAny: string;
-  ndtCommitteeMomNumber: string;
-  finalAcceptanceMomNumber: string;
-  deviationDetails: string;
-  dispatchDate: string;
-  dispatchLocation: string;
-  supportingFiles: DispatchSupportingFilePayload[];
+  schemaVersion?: string;
+  schemaType?: string;
+  motorStage?: string;
+  motorId?: string;
+  castingDate?: string;
+  dispatchDate?: string;
+  dispatchLocation?: string;
+  ndtClearance?: string;
+  ndtMomNo?: string;
+  finalAcceptanceClearance?: string;
+  finalAcceptanceMomNo?: string;
+  sections: unknown[];
 };
 
 export type DispatchUpdatePayload = {
   formId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "UPDATE";
-  castingDate: string;
-  finalWeight: string;
-  waiversIfAny: string;
-  ndtCommitteeMomNumber: string;
-  finalAcceptanceMomNumber: string;
-  deviationDetails: string;
-  dispatchDate: string;
-  dispatchLocation: string;
-  supportingFiles: DispatchSupportingFilePayload[];
+  schemaVersion?: string;
+  schemaType?: string;
+  motorStage?: string;
+  motorId?: string;
+  castingDate?: string;
+  dispatchDate?: string;
+  dispatchLocation?: string;
+  ndtClearance?: string;
+  ndtMomNo?: string;
+  finalAcceptanceClearance?: string;
+  finalAcceptanceMomNo?: string;
+  sections: unknown[];
 };
 
 export type DispatchDetailsPayload = {

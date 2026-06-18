@@ -52,6 +52,7 @@ const SUBDEPT_NAME_SLUG_MAP = {
     "casting-and-curing": "casting-and-curing",
     "post-cure-operations": "post-cure-operations",
     subscale: "subscale",
+    trimming: "trimming",
   },
   quality: {
     "raw-material-revalidation": "raw-material-revalidation",

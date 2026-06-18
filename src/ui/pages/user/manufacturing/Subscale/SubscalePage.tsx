@@ -4,6 +4,7 @@ import ConfirmAlertDialog from "../../../../components/common/ConfirmAlertDialog
 import SubscaleList from "./SubscaleList";
 import SubscaleForm from "./SubscaleForm";
 import SubscaleHeader from "./SubscaleHeader";
+import SubscaleDetailsView from "./SubscaleDetailsView";
 import { useThemeStore } from "../../../../../app/store/themeStore";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
 import useSubscaleHook from "../../../../../hooks/user/manufacturing/useSubscaleHook";
@@ -35,6 +36,10 @@ const SubscalePage = () => {
     schemaLoading,
     schemaError,
     subDepartmentId,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleBackFromDetails,
   } = hookState;
 
   if (loading) {
@@ -50,6 +55,17 @@ const SubscalePage = () => {
       <Box sx={theme.workflow.animatedContainer}>
         <SubscaleList hookState={hookState} />
       </Box>
+    );
+  }
+
+  if (view === "details" && detailsRow) {
+    return (
+      <SubscaleDetailsView
+        row={detailsRow}
+        data={detailsData}
+        loading={detailsLoading}
+        onBack={handleBackFromDetails}
+      />
     );
   }
 

@@ -13,30 +13,22 @@ export type STFCreatePayload = {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-  motorNo: string;
-  emptyMotorWeight: string;
-  rubberDustWeight: string;
-  linearCoatingWeight: string;
-  looseFlapFillWeight: string;
-  extraRubberWeight: string;
-  inhibitionWeight: string;
-  finalMotorWeight: string;
-  propellantWeight: string;
+  schemaVersion?: string;
+  schemaType?: string;
+  subType?: string;
+  motorIdNo?: string;
+  sections: unknown[];
 };
 
 export type STFUpdatePayload = {
   formId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "UPDATE";
-  motorNo: string;
-  emptyMotorWeight: string;
-  rubberDustWeight: string;
-  linearCoatingWeight: string;
-  looseFlapFillWeight: string;
-  extraRubberWeight: string;
-  inhibitionWeight: string;
-  finalMotorWeight: string;
-  propellantWeight: string;
+  schemaVersion?: string;
+  schemaType?: string;
+  subType?: string;
+  motorIdNo?: string;
+  sections: unknown[];
 };
 
 export type STFDetailsPayload = {

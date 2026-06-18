@@ -17,7 +17,7 @@ import { MANUFACTURING_STATUS } from "./manufacturingWorkflowData";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 import type { SchemaFormValues } from "../../../schema-engine";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type SubscaleBatch = {
   batchId: string;
@@ -52,6 +52,9 @@ export const useSubscaleHook = () => {
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [formData, setFormData] = useState<SubscaleFormState>(createDefaultSubscaleFormState());
   const [initialSnapshot, setInitialSnapshot] = useState("{}");
+  const [detailsRow, setDetailsRow] = useState<SubscaleBatch | null>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const formSnapshot = useMemo(() => JSON.stringify(formData), [formData]);
   const isFormDirty = useMemo(
@@ -220,6 +223,7 @@ export const useSubscaleHook = () => {
           }
           response = await subscaleController.createForm({
             batchId: activeBatch.batchId,
+            batchType: activeBatch.batchType ?? "",
             subDepartmentId,
             formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
             ...payloadBody,
@@ -231,8 +235,10 @@ export const useSubscaleHook = () => {
           }
           response = await subscaleController.updateForm({
             formId: activeBatch.formId,
+            batchId: activeBatch.batchId,
+            batchType: activeBatch.batchType ?? "",
             subDepartmentId,
-            formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
+            formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
             ...payloadBody,
           });
         }
@@ -281,6 +287,45 @@ export const useSubscaleHook = () => {
   const handleSaveDraft = useCallback(async () => submitForm("draft"), [submitForm]);
   const handleSubmit = useCallback(async () => submitForm("submit"), [submitForm]);
 
+  const handleViewDetails = useCallback(
+    async (row: SubscaleBatch) => {
+      if (!row.formId) {
+        showAlert(STRINGS.MANUFACTURING.SUBSCALE.FORM_ID_MISSING, "error");
+        return;
+      }
+      if (!subDepartmentId) {
+        showAlert(STRINGS.MANUFACTURING.SUBSCALE.SUB_DEPARTMENT_MISSING, "error");
+        return;
+      }
+
+      setDetailsLoading(true);
+      const response = await subscaleController.fetchFormDetails({
+        formId: row.formId,
+        subDepartmentId,
+      });
+      setDetailsLoading(false);
+
+      if (!response?.success || !response?.data) {
+        showAlert(
+          response?.message || STRINGS.MANUFACTURING.SUBSCALE.DETAILS_FETCH_ERROR,
+          "error",
+        );
+        return;
+      }
+
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [showAlert, subDepartmentId],
+  );
+
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
+
   return {
     ...listParams,
     loading: listParams.loading || loadingFormDetails || schemaLoading,
@@ -295,6 +340,9 @@ export const useSubscaleHook = () => {
     backConfirmOpen,
     setBackConfirmOpen,
     subDepartmentId,
+    detailsRow,
+    detailsData,
+    detailsLoading,
     handleFillForm,
     handleEditForm,
     handleBack,
@@ -302,6 +350,8 @@ export const useSubscaleHook = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    handleViewDetails,
+    handleBackFromDetails,
   };
 };
 

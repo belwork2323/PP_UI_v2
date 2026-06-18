@@ -15,6 +15,7 @@ import MixingPage from "./Mixing/MixingPage";
 import CastingCuringPage from "./CastingAndCuring/CastingAndCuringPage";
 import PostCurePage from "./PostCure/PostCurePage";
 import SubscalePage from "./Subscale/SubscalePage";
+import TrimmingPage from "./Trimming/TrimmingPage";
 
 export default function ManufacturingDashboard() {
   const mode = useThemeStore((state) => state.mode);
@@ -29,6 +30,7 @@ export default function ManufacturingDashboard() {
     isCastingAndCuringFlow,
     isPostCureFlow,
     isSubscaleFlow,
+    isTrimmingFlow,
   } = useManufacturingDashboardHook();
 
   const { userName, userRole, stats } = useUserDepartmentHeaderHook({
@@ -53,6 +55,7 @@ export default function ManufacturingDashboard() {
         {isCastingAndCuringFlow && <CastingCuringPage />}
         {isPostCureFlow && <PostCurePage />}
         {isSubscaleFlow && <SubscalePage />}
+        {isTrimmingFlow && <TrimmingPage />}
       </Box>
     </Box>
   );

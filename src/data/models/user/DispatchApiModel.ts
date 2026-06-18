@@ -1,7 +1,9 @@
-import type {
-  DispatchFormState,
-  DispatchSupportingFile,
+import {
+  mapDispatchDetailsToFormState,
+  mapDispatchFormStateToPayload,
+  type DispatchFormState,
 } from "./DispatchFormModel";
+import type { SchemaSectionSubmission } from "../../../schema-engine";
 
 export type DispatchSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
 
@@ -26,15 +28,16 @@ export class DispatchDetailsModel {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: string;
+  motorStage: string;
+  motorId: string;
   castingDate: string;
-  finalWeight: string;
-  waiversIfAny: string;
-  ndtCommitteeMomNumber: string;
-  finalAcceptanceMomNumber: string;
-  deviationDetails: string;
   dispatchDate: string;
   dispatchLocation: string;
-  supportingFiles: Array<{ name: string; filePath: string; fileType: string }>;
+  ndtClearance: string;
+  ndtMomNo: string;
+  finalAcceptanceClearance: string;
+  finalAcceptanceMomNo: string;
+  sections: SchemaSectionSubmission[];
   workflowInsights: {
     currentStatus: string;
     rejectionReason: string | null;
@@ -45,19 +48,16 @@ export class DispatchDetailsModel {
     this.batchId = payload?.batchId ?? "";
     this.subDepartmentId = Number(payload?.subDepartmentId ?? 0);
     this.formSubmissionType = payload?.formSubmissionType ?? "";
+    this.motorStage = payload?.motorStage ?? "";
+    this.motorId = payload?.motorId ?? "";
     this.castingDate = payload?.castingDate ?? "";
-    this.finalWeight = payload?.finalWeight ?? "";
-    this.waiversIfAny = payload?.waiversIfAny ?? "";
-    this.ndtCommitteeMomNumber = payload?.ndtCommitteeMomNumber ?? "";
-    this.finalAcceptanceMomNumber = payload?.finalAcceptanceMomNumber ?? "";
-    this.deviationDetails = payload?.deviationDetails ?? "";
     this.dispatchDate = payload?.dispatchDate ?? "";
     this.dispatchLocation = payload?.dispatchLocation ?? "";
-    this.supportingFiles = (payload?.supportingFiles ?? []).map((file: any) => ({
-      name: file?.name ?? "",
-      filePath: file?.filePath ?? "",
-      fileType: file?.fileType ?? "",
-    }));
+    this.ndtClearance = payload?.ndtClearance ?? "";
+    this.ndtMomNo = payload?.ndtMomNo ?? "";
+    this.finalAcceptanceClearance = payload?.finalAcceptanceClearance ?? "";
+    this.finalAcceptanceMomNo = payload?.finalAcceptanceMomNo ?? "";
+    this.sections = Array.isArray(payload?.sections) ? payload.sections : [];
     this.workflowInsights = {
       currentStatus: payload?.workflowInsights?.currentStatus ?? "",
       rejectionReason: payload?.workflowInsights?.rejectionReason ?? null,
@@ -68,41 +68,25 @@ export class DispatchDetailsModel {
     return new DispatchDetailsModel(apiResponse?.data ?? {});
   }
 
-  static toFormState(model: DispatchDetailsModel): DispatchFormState {
-    return {
-      castingDate: model.castingDate ?? "",
-      finalWeight: model.finalWeight ?? "",
-      waiversIfAny: model.waiversIfAny ?? "",
-      ndtCommitteeMomNumber: model.ndtCommitteeMomNumber ?? "",
-      finalAcceptanceMomNumber: model.finalAcceptanceMomNumber ?? "",
-      deviationDetails: model.deviationDetails ?? "",
-      dispatchDate: model.dispatchDate ?? "",
-      dispatchLocation: model.dispatchLocation ?? "",
-      supportingFiles: (model.supportingFiles ?? []).map((file) => ({
-        name: file.name,
-        filePath: file.filePath,
-        fileType: file.fileType,
-        type: file.fileType,
-      })),
-    };
+  static toFormState(model: DispatchDetailsModel) {
+    return mapDispatchDetailsToFormState({
+      formId: model.formId,
+      batchId: model.batchId,
+      subDepartmentId: model.subDepartmentId,
+      formSubmissionType: model.formSubmissionType,
+      motorStage: model.motorStage,
+      motorId: model.motorId,
+      castingDate: model.castingDate,
+      dispatchDate: model.dispatchDate,
+      dispatchLocation: model.dispatchLocation,
+      ndtClearance: model.ndtClearance,
+      ndtMomNo: model.ndtMomNo,
+      finalAcceptanceClearance: model.finalAcceptanceClearance,
+      finalAcceptanceMomNo: model.finalAcceptanceMomNo,
+      sections: model.sections,
+    });
   }
 }
 
-const normalizeSupportingFiles = (files: DispatchSupportingFile[] = []) =>
-  files.map((file) => ({
-    name: file?.name ?? "",
-    filePath: file?.filePath ?? file?.name ?? "",
-    fileType: file?.fileType ?? file?.type ?? file?.file?.type ?? "",
-  }));
-
-export const mapDispatchPayload = (form: DispatchFormState) => ({
-  castingDate: form?.castingDate ?? "",
-  finalWeight: form?.finalWeight ?? "",
-  waiversIfAny: form?.waiversIfAny ?? "",
-  ndtCommitteeMomNumber: form?.ndtCommitteeMomNumber ?? "",
-  finalAcceptanceMomNumber: form?.finalAcceptanceMomNumber ?? "",
-  deviationDetails: form?.deviationDetails ?? "",
-  dispatchDate: form?.dispatchDate ?? "",
-  dispatchLocation: form?.dispatchLocation ?? "",
-  supportingFiles: normalizeSupportingFiles(form?.supportingFiles ?? []),
-});
+export const mapDispatchPayload = (form: DispatchFormState) =>
+  mapDispatchFormStateToPayload(form);

@@ -117,6 +117,9 @@ export const useCasePreparationHook = () => {
     const defaults = createDefaultCasePreparationFormState();
     setView("list");
     setActiveBatch(null);
+    setDetailsRow(null);
+    setDetailsData(null);
+    setDetailsLoading(false);
     setIsEditMode(false);
     setLoadingFormDetails(false);
     setSchemaLoading(false);

@@ -1,7 +1,7 @@
 // src/ui/pages/user/manufacturing/PostCure/PostCureList.tsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, Typography, Stack, Tooltip, IconButton } from "@mui/material";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -12,7 +12,7 @@ import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/m
 import { getOperationStatusConfig, OPERATION_STATUS } from "../../../../../hooks/operationStatus";
 import { STRINGS } from "../../../../../app/config/strings";
 import { getOpTypeCfg, POST_CURE_OP_TYPE_OPTIONS } from "../../../../../hooks/user/manufacturing/postCureConfig";
-
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 const {
   pending: HourglassEmptyRoundedIcon,
   approved: CheckCircleRoundedIcon,
@@ -34,25 +34,7 @@ export const PC_STATUS_CONFIG = getOperationStatusConfig({
 
 const S = STRINGS.MANUFACTURING;
 
-/** Dev-only rows prepended to the batch list for local UI testing. */
-const USE_MOCK_PC_BATCH = import.meta.env.DEV;
 
-const MOCK_PC_BATCHES = [
-  {
-    id: "mock-pc-initiated",
-    batchId: "PC-MOCK-001",
-    operationType: "Full Process",
-    motorId: "MTR-D-001, MTR-D-002, MTR-D-003, MTR-D-004",
-    motorIds: ["MTR-D-001", "MTR-D-002", "MTR-D-003", "MTR-D-004"],
-    motorType: "D",
-    projectName: "Project Delta (Mock)",
-    assignedTo: { fullName: "Mock Operator" },
-    createdOn: "2026-06-10T09:00:00Z",
-    priority: "High",
-    pcStatus: OPERATION_STATUS.INITIATED,
-    formId: null,
-  },
-] as const;
 
 const PostCureList = ({ hookState, rowsPerPageOptions }: any) => {
   const mode = useThemeStore((state) => state.mode);
@@ -73,27 +55,12 @@ const PostCureList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewPostCureDetails
   } = hookState;
 
-  const displayRows = useMemo(
-    () => (USE_MOCK_PC_BATCH ? [...MOCK_PC_BATCHES, ...batches] : batches),
-    [batches],
-  );
-
-  const displayTotalRecords = USE_MOCK_PC_BATCH ? totalRecords + MOCK_PC_BATCHES.length : totalRecords;
-
-  const displayStatusCounts = useMemo(() => {
-    if (!USE_MOCK_PC_BATCH) return statusCounts;
-    const next = { ...statusCounts };
-    MOCK_PC_BATCHES.forEach((row) => {
-      const status = row.pcStatus;
-      next[status] = (next[status] ?? 0) + 1;
-      next[STRINGS.USER_BATCH_LIST.FILTER_ALL] =
-        (next[STRINGS.USER_BATCH_LIST.FILTER_ALL] ?? displayTotalRecords);
-    });
-    return next;
-  }, [statusCounts, displayTotalRecords]);
-
+  const canViewPostCureDetails = (status: string) =>
+    status === OPERATION_STATUS.WAITING_FOR_APPROVAL ||
+    status === OPERATION_STATUS.APPROVED;
   const statusConfig = useMemo(
     () =>
       Object.fromEntries(
@@ -193,7 +160,7 @@ const PostCureList = ({ hookState, rowsPerPageOptions }: any) => {
 
   return (
     <UserBatchList
-      rows={displayRows}
+      rows={batches}
       columns={COLUMNS}
       statusField="pcStatus"
       statusConfig={statusConfig}
@@ -207,8 +174,8 @@ const PostCureList = ({ hookState, rowsPerPageOptions }: any) => {
       rowsPerPageOptions={rowsPerPageOptions}
       tableLabel={S.POST_CURE.TABLE_LABEL}
       themeTokens={theme}
-      totalRecords={displayTotalRecords}
-      statusCounts={displayStatusCounts}
+      totalRecords={totalRecords}
+      statusCounts={statusCounts}
       page={page}
       rowsPerPage={rowsPerPage}
       search={search}
@@ -219,17 +186,40 @@ const PostCureList = ({ hookState, rowsPerPageOptions }: any) => {
       onStatusFilterChange={setStatusFilter}
       isLoading={loading}
       renderAction={(row: any) => (
-        <UserWorkflowStatusAction
-          status={row.pcStatus}
-          row={row}
-          statusMap={OPERATION_STATUS}
-          onFillForm={handleFillForm}
-          onEditForm={handleEditForm}
-          theme={theme}
-          fillLabel={S.BATCH_LIST.FILL_ACTION}
-          continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
-          editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
-        />
+        <Stack direction="row" spacing={0.75}>
+          {canViewPostCureDetails(row.pcStatus) ? (
+            <Tooltip
+              title={S.POST_CURE.VIEW_DETAILS_TOOLTIP}
+              arrow
+            >
+              <IconButton
+                size="small"
+                onClick={() =>
+                  handleViewPostCureDetails(row)
+                }
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${theme.palette.primaryLight}55`,
+                  borderRadius: 1.5,
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.pcStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              theme={theme}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+            />
+          )}
+        </Stack>
       )}
     />
   );

@@ -1,0 +1,298 @@
+{
+  "success": true,
+  "statusCode": 200,
+  "schemaVersion": "1.0",
+  "schemaType": "DISPATCH",
+  "functionality": "CREATE_DISPATCH_FORM",
+  "subDepartmentId": 116,
+  "message": "Dispatch schema fetched successfully",
+  "meta": {
+    "title": "Dispatch Details",
+    "description": "Dispatch details, clearance and inspection information"
+  },
+  "data": {
+    "layout": {
+      "type": "flat"
+    },
+    "meta": {
+      "title": "Dispatch Details",
+      "description": "Dispatch details, clearance and inspection information"
+    },
+    "ui": {
+      "layout": "flat",
+      "gap": "md",
+      "sectionVariant": "card",
+      "sectionBorderRadius": "sm",
+      "designSystem": {
+        "colors": {
+          "primary": "#1B4F72",
+          "primaryLight": "#2E86C1",
+          "surface": "#F4F6F8",
+          "border": "#D5D8DC",
+          "text": "#1C2833",
+          "textSub": "#5D6D7E"
+        },
+        "typography": {},
+        "spacing": {
+          "xs": 4,
+          "sm": 8,
+          "md": 12,
+          "lg": 16,
+          "xl": 24
+        },
+        "radius": {
+          "sm": 4,
+          "md": 6,
+          "lg": 8
+        },
+        "icons": {
+          "sectionDefault": "description",
+          "dispatch": "local_shipping"
+        }
+      }
+    },
+    "context": {
+      "subDepartmentId": 116
+    },
+    "sections": [
+      {
+        "sectionId": "PROPELLANT_PROPERTIES",
+        "sectionName": "Propellant Properties Details",
+        "type": "table",
+        "addRowAllowed": false,
+        "addColumnsAllowed": true,
+        "columns": [
+          {
+            "fieldId": "CATEGORY",
+            "label": "Category",
+            "type": "text",
+            "readonly": true
+          },
+          {
+            "fieldId": "PROPERTY",
+            "label": "Property",
+            "type": "text",
+            "readonly": true
+          },
+          {
+            "fieldId": "SPECIFICATION",
+            "label": "Specs",
+            "type": "text"
+          },
+          {
+            "fieldId": "FM1",
+            "label": "FM1",
+            "type": "text"
+          },
+          {
+            "fieldId": "FM2",
+            "label": "FM2",
+            "type": "text"
+          },
+          {
+            "fieldId": "FM3",
+            "label": "FM3",
+            "type": "text"
+          }
+        ],
+        "predefinedRows": [
+          {
+            "category": "Mechanical",
+            "property": "Tensile Strength"
+          },
+          {
+            "category": "Mechanical",
+            "property": "Modulus"
+          },
+          {
+            "category": "Mechanical",
+            "property": "Elongation"
+          },
+          {
+            "category": "Mechanical",
+            "property": "Density"
+          },
+          {
+            "category": "Interfacial",
+            "property": "Peel Strength"
+          },
+          {
+            "category": "Interfacial",
+            "property": "TBS"
+          },
+          {
+            "category": "Interfacial",
+            "property": "SBS"
+          },
+          {
+            "category": "Ballistic",
+            "property": "Burn Rate"
+          }
+        ]
+      },
+      {
+        "sectionId": "WAIVER_DETAILS",
+        "sectionName": "Waiver Details",
+        "type": "form",
+        "fields": [
+          {
+            "fieldId": "WAIVER_AVAILABLE",
+            "label": "Waiver Details, if any",
+            "type": "textarea"
+          }
+        ]
+      },
+      {
+        "sectionId": "ROCKET_MOTOR_INSPECTION",
+        "sectionName": "Rocket Motor Inspection",
+        "type": "table",
+        "columns": [
+          {
+            "fieldId": "PARAMETER",
+            "label": "Parameter",
+            "type": "text",
+            "readonly": true
+          },
+          {
+            "fieldId": "OBSERVATION",
+            "label": "Observation",
+            "type": "textarea"
+          }
+        ],
+        "predefinedRows": [
+          {
+            "parameter": "Condition of Lugs"
+          },
+          {
+            "parameter": "HE Polar Boss"
+          },
+          {
+            "parameter": "NE Polar Boss"
+          },
+          {
+            "parameter": "Port"
+          },
+          {
+            "parameter": "IR Bead"
+          }
+        ]
+      },
+      {
+        "sectionId": "VEHICLE_DETAILS",
+        "sectionName": "Vehicle Details",
+        "type": "table",
+        "columns": [
+          {
+            "fieldId": "CHECK_POINT",
+            "label": "Check Point",
+            "type": "text",
+            "readonly": true
+          },
+          {
+            "fieldId": "OBSERVATION",
+            "label": "Observation",
+            "type": "textarea"
+          }
+        ],
+        "predefinedRows": [
+          {
+            "checkPoint": "Vehicle No."
+          },
+          {
+            "checkPoint": "Condition of Tyres"
+          },
+          {
+            "checkPoint": "Visual observation on article"
+          },
+          {
+            "checkPoint": "Firefighting Equipment availability"
+          },
+          {
+            "checkPoint": "Isolator conditions"
+          },
+          {
+            "checkPoint": "Shock log"
+          },
+          {
+            "checkPoint": "Name of Convoy Commander"
+          }
+        ]
+      },
+      {
+        "sectionId": "ROCKET_MOTOR_PACKING",
+        "sectionName": "Rocket Motor Packing Details",
+        "type": "table",
+        "columns": [
+          {
+            "fieldId": "NOMENCLATURE",
+            "label": "Nomenclature",
+            "type": "text",
+            "readonly": true
+          },
+          {
+            "fieldId": "OBSERVATION",
+            "label": "Observation",
+            "type": "text"
+          }
+        ],
+        "predefinedRows": [
+          {
+            "nomenclature": "End Closures at HE"
+          },
+          {
+            "nomenclature": "End Closures at NE"
+          },
+          {
+            "nomenclature": "Nitrogen gas purging"
+          },
+          {
+            "nomenclature": "Labelling of motor"
+          }
+        ]
+      },
+      {
+        "sectionId": "SAFETY_CLEARANCE",
+        "sectionName": "Safety Clearance",
+        "type": "form",
+        "fields": [
+          {
+            "fieldId": "SAFETY_CLEARANCE_STATUS",
+            "label": "Safety Clearance for Dispatch Accorded",
+            "type": "dropdown",
+            "options": [
+              "YES",
+              "NO"
+            ]
+          },
+          {
+            "fieldId": "CLEARANCE_CERTIFICATE",
+            "label": "Upload Clearance Certificate",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "sectionId": "DISPATCH_TEAM",
+        "sectionName": "Dispatch Team",
+        "type": "form",
+        "fields": [
+          {
+            "fieldId": "QA_REPRESENTATIVE",
+            "label": "QA Representative",
+            "type": "text"
+          },
+          {
+            "fieldId": "SAFETY_REPRESENTATIVE",
+            "label": "Safety Representative",
+            "type": "text"
+          },
+          {
+            "fieldId": "PROJECT_REPRESENTATIVE",
+            "label": "Project Representative",
+            "type": "text"
+          }
+        ]
+      }
+    ]
+  }
+}

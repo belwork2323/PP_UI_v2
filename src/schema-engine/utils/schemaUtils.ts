@@ -94,11 +94,13 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
     | undefined;
 
   const batchType = envelope.batchType ?? documentRoot.batchType ?? dataPayload.batchType;
+  const motorStage = envelope.motorStage ?? documentRoot.motorStage ?? dataPayload.motorStage;
   const context = {
     ...((dataPayload.context ?? documentRoot.context ?? envelope.context ?? root.context) as
       | Record<string, unknown>
       | undefined),
     ...(batchType ? { batchType } : {}),
+    ...(motorStage !== undefined && motorStage !== null ? { motorStage } : {}),
   };
 
   return {
