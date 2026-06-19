@@ -1,6 +1,5 @@
-import { QUALITY_CONTROL_STATUS } from "./qualityControlWorkflowData";
-import type { NDTRadiographyPlanRow } from "../../data/models/user/NDTFormModel";
-import type { NDTFormState } from "../../data/models/user/NDTFormModel";
+import type { NDTRadiographyPlanRow } from "../../../data/models/user/NDTFormModel";
+import type { NDTFormState } from "../../../data/models/user/NDTFormModel";
 
 export type NDTBatch = {
   id: number | string;
@@ -113,99 +112,6 @@ export const NDT_VISUAL_INSPECTION_PRESETS = [
   "Beading condition",
 ] as const;
 
-const MOCK_CASTED_MOTORS: Record<string, string[]> = {
-  "BATCH-2026-NDT-001": ["MTR-S0-001", "MTR-S0-002", "MTR-S1-014"],
-  "BATCH-2026-NDT-002": ["MTR-S1-021", "MTR-S1-022"],
-  "BATCH-2026-NDT-003": ["MTR-S2-008"],
-  "BATCH-2026-NDT-004": ["MTR-S0-015", "MTR-S0-016", "MTR-S1-030", "MTR-S2-011"],
-};
-
-export const getCastedMotorsForBatch = (batchId?: string | null): string[] => {
-  if (!batchId) return [];
-  return MOCK_CASTED_MOTORS[batchId] ?? [`${batchId}-MTR-001`, `${batchId}-MTR-002`];
-};
-
-export const MOCK_NDT_BATCHES: NDTBatch[] = [
-  {
-    id: "mock-ndt-1",
-    lotId: "BATCH-2026-NDT-001",
-    batchId: "BATCH-2026-NDT-001",
-    motorId: "MTR-S0-001",
-    motorType: "0",
-    priority: "High",
-    assignedTo: { fullName: "Rajesh Kumar" },
-    createdOn: "2026-06-08T09:30:00Z",
-    ndtStatus: QUALITY_CONTROL_STATUS.INITIATED,
-    formId: null,
-    rejectionReason: null,
-  },
-  {
-    id: "mock-ndt-2",
-    lotId: "BATCH-2026-NDT-002",
-    batchId: "BATCH-2026-NDT-002",
-    motorId: "MTR-S1-021",
-    motorType: "1",
-    priority: "Critical",
-    assignedTo: { fullName: "Anita Sharma" },
-    createdOn: "2026-06-10T14:15:00Z",
-    ndtStatus: QUALITY_CONTROL_STATUS.IN_PROGRESS,
-    formId: "NDT-FORM-2026-002",
-    rejectionReason: null,
-  },
-  {
-    id: "mock-ndt-3",
-    lotId: "BATCH-2026-NDT-003",
-    batchId: "BATCH-2026-NDT-003",
-    motorId: "MTR-S2-008",
-    motorType: "2",
-    priority: "Medium",
-    assignedTo: { fullName: "Vikram Patel" },
-    createdOn: "2026-06-12T11:00:00Z",
-    ndtStatus: QUALITY_CONTROL_STATUS.WAITING_FOR_APPROVAL,
-    formId: "NDT-FORM-2026-003",
-    rejectionReason: null,
-  },
-  {
-    id: "mock-ndt-4",
-    lotId: "BATCH-2026-NDT-004",
-    batchId: "BATCH-2026-NDT-004",
-    motorId: "MTR-S0-015",
-    motorType: "0",
-    priority: "High",
-    assignedTo: { fullName: "Priya Menon" },
-    createdOn: "2026-06-14T08:45:00Z",
-    ndtStatus: QUALITY_CONTROL_STATUS.REJECTED,
-    formId: "NDT-FORM-2026-004",
-    rejectionReason: "Radiography observations incomplete for section 3.",
-  },
-  {
-    id: "mock-ndt-5",
-    lotId: "BATCH-2026-NDT-005",
-    batchId: "BATCH-2026-NDT-005",
-    motorId: "MTR-S3-004",
-    motorType: "3",
-    priority: "Low",
-    assignedTo: { fullName: "Suresh Iyer" },
-    createdOn: "2026-06-15T16:20:00Z",
-    ndtStatus: QUALITY_CONTROL_STATUS.APPROVED,
-    formId: "NDT-FORM-2026-005",
-    rejectionReason: null,
-  },
-];
-
-export const mergeNDTMockBatches = (apiBatches: NDTBatch[]): NDTBatch[] => {
-  const mockIds = new Set(MOCK_NDT_BATCHES.map((batch) => batch.batchId));
-  const filtered = apiBatches.filter((batch) => !mockIds.has(batch.batchId));
-  return [...MOCK_NDT_BATCHES, ...filtered];
-};
-
-export const computeNDTStatusCounts = (rows: NDTBatch[]): Record<string, number> =>
-  rows.reduce<Record<string, number>>((acc, row) => {
-    const status = row.ndtStatus ?? QUALITY_CONTROL_STATUS.INITIATED;
-    acc[status] = (acc[status] ?? 0) + 1;
-    return acc;
-  }, {});
-
 export type NDTMotorOption = { value: string; label: string; disabled?: boolean };
 
 export type NDTAddedMotor = { motorId: string };
@@ -246,10 +152,14 @@ export const resolveEffectiveNDTMotorCount = (motorCount: number | "", draftMoto
   return draftMotorIds.some((id) => String(id ?? "").trim().length > 0) ? 1 : 0;
 };
 
+export const getCastedMotorsForBatch = (_batchId?: string | null): string[] => {
+  return [];
+};
+
 export const resolveNDTMotorOptions = (batch?: { batchId?: string; motorId?: string; motorIds?: string[] } | null) => {
-  const batchIds = Array.isArray(batch?.motorIds) ? batch.motorIds : [];
+  const ids = Array.isArray(batch?.motorIds) ? batch.motorIds : [];
   const casted = getCastedMotorsForBatch(batch?.batchId);
-  const merged = [...batchIds, ...casted, batch?.motorId ?? ""].map((id) => String(id ?? "").trim()).filter(Boolean);
+  const merged = [...ids, ...casted, batch?.motorId ?? ""].map((id) => String(id ?? "").trim()).filter(Boolean);
   const unique = Array.from(new Set(merged));
   return unique.map((value) => ({ value, label: value }));
 };

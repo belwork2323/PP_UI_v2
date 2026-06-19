@@ -894,6 +894,7 @@ export const icons = {
       qcDivision: {
         form: {
           factCheck: FactCheckRoundedIcon,
+          science: ScienceRoundedIcon,
           save: SaveOutlinedIcon,
           send: SendRoundedIcon,
           warning: WarningAmberRoundedIcon,

@@ -8,7 +8,6 @@ import { useThemeStore } from "../../../../app/store/themeStore";
 import getQualityControlTheme from "../../../../app/theme/custom_themes/user/qualityControl/qualityControl_theme";
 import { STRINGS } from "../../../../app/config/strings";
 
-import RawMaterialRevalidationPage from "./RawMaterialRevalidation/RawMaterialRevalidationPage";
 import QCDivisionPage from "./QCDivision/QCDivisionPage";
 import NDTPage from "./NDT/NDTPage";
 import STFPage from "./StaticTestFacility/StaticTestFacilityPage";
@@ -18,7 +17,7 @@ import STFPage from "./StaticTestFacility/StaticTestFacilityPage";
 
 const SUB_DEPT_LABELS = {
   "raw-material-revalidation": "Raw Material Revalidation",
-  "qc-division":                "QC Division",
+  "qc-division":                "Quality Control",
   "ndt":                       "NDT",
   "static-test-facility":      "Static Test Facility",
 };
@@ -43,8 +42,9 @@ export default function QualityControlDashboard() {
       />
 
       <Box sx={theme.dashboard.content}>
-        {subDept === "raw-material-revalidation" && <RawMaterialRevalidationPage />}
-        {subDept === "qc-division" && <QCDivisionPage />}
+        {(subDept === "raw-material-revalidation" || subDept === "qc-division") && (
+          <QCDivisionPage />
+        )}
         {subDept === "ndt"        && <NDTPage />}
         {subDept === "static-test-facility"  && <STFPage />}
       </Box>

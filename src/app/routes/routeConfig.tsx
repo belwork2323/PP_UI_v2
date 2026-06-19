@@ -101,12 +101,6 @@ export const routes = [
     roles: ["APPROVER"],
   },
   {
-    path: "/approver/manufacturing/:subDept",
-    element: <ManufacturingApproverDashboard />,
-    isProtected: true,
-    roles: ["APPROVER"],
-  },
-  {
     path: "/approver/quality/:subDept",
     element: <QualityControlApproverDashboard />,
     isProtected: true,

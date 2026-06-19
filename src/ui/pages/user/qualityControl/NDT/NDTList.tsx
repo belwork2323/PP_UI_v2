@@ -1,7 +1,8 @@
 // src/ui/pages/user/quality_control/ndt/NDTList.jsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { alpha, Chip, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -23,6 +24,9 @@ const {
   person: PersonRoundedIcon,
   calendar: CalendarMonthRoundedIcon,
 } = icons.user.qualityControl.ndt.list;
+
+const canViewNDTDetails = (status: string) =>
+  status === OPERATION_STATUS.WAITING_FOR_APPROVAL || status === OPERATION_STATUS.APPROVED;
 
 // ─── Status constants ─────────────────────────────────────────────────────────
 export const NDT_STATUS_CONFIG = getOperationStatusConfig({
@@ -53,6 +57,7 @@ const NDTList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewDetails,
   } = hookState;
 
   const statusConfig = useMemo(
@@ -99,7 +104,28 @@ const NDTList = ({ hookState, rowsPerPageOptions }: any) => {
     onSearchChange={setSearch}
     onStatusFilterChange={setStatusFilter}
     isLoading={loading}
-    renderAction={(row: any) => <UserWorkflowStatusAction status={row.ndtStatus} row={row} statusMap={OPERATION_STATUS} onFillForm={handleFillForm} onEditForm={handleEditForm} theme={theme} fillLabel={S.BATCH_LIST.FILL_ACTION} continueLabel={S.BATCH_LIST.CONTINUE_ACTION} editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP} />}
+    renderAction={(row: any) => (
+      <Stack direction="row" alignItems="center" spacing={0.75}>
+        {canViewNDTDetails(row.ndtStatus) ? (
+          <Tooltip title={S.BATCH_LIST.VIEW_DETAILS_TOOLTIP} arrow placement="top">
+            <IconButton
+              size="small"
+              onClick={() => handleViewDetails(row)}
+              sx={{
+                color: theme.palette.primaryLight,
+                border: `1px solid ${alpha(theme.palette.primaryLight, 0.35)}`,
+                borderRadius: 1.5,
+                "&:hover": { background: alpha(theme.palette.primaryLight, 0.08) },
+              }}
+            >
+              <VisibilityRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <UserWorkflowStatusAction status={row.ndtStatus} row={row} statusMap={OPERATION_STATUS} onFillForm={handleFillForm} onEditForm={handleEditForm} theme={theme} fillLabel={S.BATCH_LIST.FILL_ACTION} continueLabel={S.BATCH_LIST.CONTINUE_ACTION} editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP} />
+        )}
+      </Stack>
+    )}
   />
   );
 };

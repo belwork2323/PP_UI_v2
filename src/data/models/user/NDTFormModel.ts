@@ -134,7 +134,18 @@ export const normalizeNDTFormState = (input?: Partial<LegacyNDTFormState> | null
   const base = createDefaultNDTFormState(input?.batchId ?? "");
   if (!input) return base;
 
-  if (Array.isArray(input.motors) && input.motors.length > 0) {
+  if (Array.isArray(input.motors)) {
+    if (input.motors.length === 0) {
+      return {
+        ...base,
+        formLoaded: Boolean(input.formLoaded),
+        equipment: input.equipment ?? "",
+        beamEnergies: Array.isArray(input.beamEnergies) ? input.beamEnergies : [],
+        radiographyPlan: input.radiographyPlan ?? "",
+        radiographyPlanRows: Array.isArray(input.radiographyPlanRows) ? input.radiographyPlanRows : [],
+        motorId: input.motorId ?? undefined,
+      };
+    }
     return {
       batchId: input.batchId ?? base.batchId,
       formLoaded: Boolean(input.formLoaded ?? true),
@@ -149,7 +160,6 @@ export const normalizeNDTFormState = (input?: Partial<LegacyNDTFormState> | null
 
   const legacyMotorId = String(input.motorId ?? "").trim();
   const hasLegacyData =
-    legacyMotorId.length > 0 ||
     Boolean(input.equipment) ||
     (input.beamEnergies?.length ?? 0) > 0 ||
     Boolean(input.radiographyPlan);
@@ -192,7 +202,7 @@ export const normalizeNDTFormState = (input?: Partial<LegacyNDTFormState> | null
 const hasText = (value?: string | null) => Boolean(String(value ?? "").trim());
 const hasFiles = (files?: NDTFileValue[] | null) => (files?.length ?? 0) > 0;
 
-const motorHasValue = (motor: NDTMotorSession) => {
+export const motorHasValue = (motor: NDTMotorSession) => {
   if (motor.additionalExposureRows.some((row) => hasText(row.sectionNumber) || hasText(row.orientation) || hasText(row.exposureCount))) {
     return true;
   }

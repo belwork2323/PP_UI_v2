@@ -14,16 +14,21 @@ export const buildFlatVisibilityContext = (
 ): Record<string, unknown> => {
   const merged: Record<string, unknown> = { ...extra };
 
+  const assignScalar = (key: string, val: unknown) => {
+    if (key.startsWith("_")) return;
+    if (Array.isArray(val) || (val && typeof val === "object")) return;
+    merged[key] = val ?? "";
+  };
+
   const walk = (val: unknown) => {
     if (Array.isArray(val)) {
       val.forEach((item) => {
         if (item && typeof item === "object") {
           Object.entries(item as Record<string, unknown>).forEach(([key, v]) => {
-            if (key.startsWith("_")) return;
             if (Array.isArray(v) || (v && typeof v === "object" && !Array.isArray(v))) {
               walk(v);
             } else {
-              merged[key] = v;
+              assignScalar(key, v);
             }
           });
         }
@@ -31,11 +36,24 @@ export const buildFlatVisibilityContext = (
       return;
     }
     if (val && typeof val === "object") {
-      Object.assign(merged, val as Record<string, unknown>);
+      Object.entries(val as Record<string, unknown>).forEach(([key, v]) => {
+        if (Array.isArray(v) || (v && typeof v === "object" && !Array.isArray(v))) {
+          walk(v);
+        } else {
+          assignScalar(key, v);
+        }
+      });
     }
   };
 
-  Object.values(values).forEach(walk);
+  Object.entries(values).forEach(([key, val]) => {
+    if (val === null || val === undefined || typeof val !== "object") {
+      assignScalar(key, val);
+      return;
+    }
+    walk(val);
+  });
+
   return merged;
 };
 

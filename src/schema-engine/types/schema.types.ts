@@ -48,11 +48,46 @@ export type SchemaApiDataSource = {
   responsePath?: string;
   displayKey?: string;
   valueKey?: string;
+  /** Extract nested array from a parent row (e.g. `grades` on a material). */
+  nestedOptionsKey?: string;
+  /** Parent row field matched against apiContext (e.g. `materialCode` vs `RAW_MATERIAL`). */
+  parentMatchField?: string;
+  parentMatchContextKey?: string;
 };
 
 export type SchemaDataSource =
   | { type: "static"; options: SchemaFieldOption[] }
   | { type: "api"; api: SchemaApiDataSource };
+
+export type SchemaFieldValueTransform = "referenceRange" | "string";
+
+export type SchemaCommitFieldMapping = {
+  sourceField: string;
+  targetColumn: string;
+  transform?: SchemaFieldValueTransform;
+};
+
+export type SchemaColumnValueDerive = {
+  targetColumn: string;
+  sourceField: string;
+  transform?: SchemaFieldValueTransform;
+  matchFields?: string[];
+};
+
+export type SchemaTableCommitGroupConfig = {
+  pickerColumns: string[];
+  expandFromColumn: string;
+  headerLabelTemplate?: string;
+  carryColumns?: string[];
+  readonlyExpandedColumns?: string[];
+  /** Span these columns across expanded rows in a committed group (e.g. ingredient). */
+  mergeExpandedColumns?: string[];
+  /** When false, skip the full-width group header row (default: false if mergeExpandedColumns is set). */
+  showGroupHeader?: boolean;
+  fieldMappings: SchemaCommitFieldMapping[];
+  addLabel?: string;
+  removeGroupLabel?: string;
+};
 
 export type SchemaRepeatConfig = {
   defaultCount?: number | string;
@@ -75,6 +110,9 @@ export type SchemaRowsConfig = {
   presetRows?: Record<string, unknown>[];
   /** Backend table row source (e.g. CASTING_TABLE, HARDWARE_PREPARATION). */
   rowGenerationSource?: string;
+  /** Picker row committed via Add Row expands API options into grouped rows. */
+  commitGroup?: SchemaTableCommitGroupConfig;
+  addLabel?: string;
 };
 
 export type SchemaColSpan = {
@@ -106,6 +144,7 @@ export type SchemaUiConfig = {
   maxWidth?: string;
   colSpan?: SchemaColSpan;
   rowSpan?: number;
+  placeholder?: string;
   flex?: string;
   expanded?: boolean;
   columns?: number;
@@ -191,6 +230,7 @@ export type SchemaTableColumn = SchemaBlockBase & {
   dataSource?: SchemaDataSource;
   formula?: SchemaFormula;
   readonly?: boolean;
+  derive?: SchemaColumnValueDerive;
 };
 
 export type SchemaTableColumnGroup = {
@@ -203,10 +243,34 @@ export type SchemaTableColumnGroup = {
 
 export type SchemaTableColumnSlot = SchemaTableColumn | SchemaTableColumnGroup;
 
+export type SchemaTableExtraColumn = SchemaTableColumn;
+
+export type SchemaTableStoredValue = {
+  rows: Record<string, unknown>[];
+  extraColumns?: SchemaTableExtraColumn[];
+};
+
+export type SchemaTableColumnActions = {
+  /** Toolbar placement for add-column control — default `top-right` when add is enabled */
+  position?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
+  addLabel?: string;
+  ui?: SchemaUiConfig;
+};
+
 export type SchemaTableBlock = SchemaBlockBase & {
   type: "table";
   rows?: SchemaRowsConfig;
   columns: SchemaTableColumnSlot[];
+  /** When true, user can add columns (e.g. FM4, FM5) via Add Column control */
+  allowAddColumn?: boolean;
+  /** When true, user can remove dynamically added columns */
+  allowDeleteColumn?: boolean;
+  /** Prefix for auto-generated column ids/labels — default `FM` → FM4, FM5, … */
+  addColumnPrefix?: string;
+  /** Count of prefixed columns created on form init (e.g. 1 → FM1) */
+  initialExtraColumnCount?: number;
+  /** Placement and styling for column add/delete toolbar */
+  columnActions?: SchemaTableColumnActions;
 };
 
 export type SchemaMatrixRowField = {

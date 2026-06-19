@@ -13,6 +13,7 @@ import {
   createDefaultNDTFormState,
   createEmptyNDTMotorSession,
   hasAnyNDTValue,
+  motorHasValue,
   normalizeNDTFormState,
   normalizeNDTMotorSession,
   resolveRadiographyPlanRows,
@@ -22,9 +23,7 @@ import {
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 import { QUALITY_CONTROL_STATUS } from "./qualityControlWorkflowData";
 import {
-  computeNDTStatusCounts,
   getSelectedNDTDraftMotorIds,
-  mergeNDTMockBatches,
   resolveEffectiveNDTMotorCount,
   resolveNDTMotorCountLimit,
   resolveNDTMotorOptions,
@@ -32,7 +31,7 @@ import {
   type NDTBatch,
 } from "./ndtFlowConfig";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 export type { NDTBatch };
 
@@ -57,6 +56,9 @@ export const useNDTHook = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [detailsRow, setDetailsRow] = useState<NDTBatch | null>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const [motorCount, setMotorCount] = useState<number | "">("");
   const [draftMotorIds, setDraftMotorIds] = useState<string[]>([]);
@@ -76,21 +78,19 @@ export const useNDTHook = () => {
   );
 
   const batches = useMemo(
-    () => mergeNDTMockBatches((listParams.batches ?? []).map(normalizeBatch)),
+    () => (listParams.batches ?? []).map(normalizeBatch),
     [listParams.batches],
   );
 
-  const statusCounts = useMemo(() => {
-    const apiBatches = listParams.batches ?? [];
-    if (apiBatches.length > 0) return listParams.statusCounts;
-    return computeNDTStatusCounts(batches);
-  }, [batches, listParams.batches, listParams.statusCounts]);
+  const statusCounts = useMemo(
+    () => listParams.statusCounts,
+    [listParams.statusCounts],
+  );
 
-  const totalRecords = useMemo(() => {
-    const apiBatches = listParams.batches ?? [];
-    if (apiBatches.length > 0) return listParams.totalRecords;
-    return batches.length;
-  }, [batches.length, listParams.batches, listParams.totalRecords]);
+  const totalRecords = useMemo(
+    () => listParams.totalRecords,
+    [listParams.totalRecords],
+  );
 
   const availableMotorOptions = useMemo(
     () => resolveNDTMotorOptions(activeBatch),
@@ -229,7 +229,8 @@ export const useNDTHook = () => {
     const shouldFetchDetails =
       editMode ||
       batch.ndtStatus === QUALITY_CONTROL_STATUS.IN_PROGRESS ||
-      batch.ndtStatus === QUALITY_CONTROL_STATUS.REJECTED;
+      batch.ndtStatus === QUALITY_CONTROL_STATUS.REJECTED ||
+      !!batch.formId;
 
     let resolvedData = normalizeNDTFormState(
       batch.draftData ?? createDefaultNDTFormState(batch.batchId),
@@ -265,6 +266,11 @@ export const useNDTHook = () => {
       resolvedFormId = detailsResponse.data.formId || resolvedFormId;
       rejectionReason = detailsResponse.data.workflowInsights?.rejectionReason ?? rejectionReason;
     }
+
+    resolvedData = normalizeNDTFormState({
+      ...resolvedData,
+      motors: resolvedData.motors.filter(motorHasValue),
+    });
 
     const openedBatch: NDTBatch = {
       ...batch,
@@ -393,8 +399,9 @@ export const useNDTHook = () => {
 
         response = await ndtController.updateForm({
           formId: activeBatch.formId,
+          batchId: activeBatch.batchId,
           subDepartmentId,
-          formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
+          formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
           ...mapped,
         });
       }
@@ -442,6 +449,42 @@ export const useNDTHook = () => {
     return await submitForm(payload ?? formData, "submit");
   };
 
+  const handleViewDetails = async (row: NDTBatch) => {
+    if (!row.formId) {
+      showAlert(messages.FORM_ID_MISSING, "error");
+      return;
+    }
+    if (!subDepartmentId) {
+      showAlert(messages.SUB_DEPARTMENT_MISSING, "error");
+      return;
+    }
+
+    setDetailsLoading(true);
+    const response = await ndtController.fetchFormDetails({
+      formId: row.formId,
+      subDepartmentId,
+    });
+    setDetailsLoading(false);
+
+    if (!response?.success || !response?.data) {
+      showAlert(
+        response?.message || messages.DETAILS_FETCH_ERROR,
+        "error",
+      );
+      return;
+    }
+
+    setDetailsRow(row);
+    setDetailsData(response.data);
+    setView("details");
+  };
+
+  const handleBackFromDetails = () => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  };
+
   return {
     ...listParams,
     view,
@@ -455,6 +498,9 @@ export const useNDTHook = () => {
     batches,
     statusCounts,
     totalRecords,
+    detailsRow,
+    detailsData,
+    detailsLoading,
     motorCount,
     draftMotorIds,
     addedMotors,
@@ -474,6 +520,8 @@ export const useNDTHook = () => {
     setBackConfirmOpen,
     handleSaveDraft,
     handleSubmit,
+    handleViewDetails,
+    handleBackFromDetails,
   };
 };
 

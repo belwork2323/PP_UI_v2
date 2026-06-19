@@ -19,6 +19,10 @@ const ENDPOINT_ALIASES: Record<string, string> = {
   "material-lots": USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
   MATERIAL_LOTS: USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
   RAW_MATERIAL_LOTS: USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
+  "materials-list": USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST,
+  MATERIALS_LIST: USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST,
+  "specification-list": USER_OPERATIONS_ENDPOINTS.MATERIAL_SPECIFICATION_LIST,
+  MATERIAL_SPECIFICATION_LIST: USER_OPERATIONS_ENDPOINTS.MATERIAL_SPECIFICATION_LIST,
   CASTING_STATION_LIST: USER_OPERATIONS_ENDPOINTS.CASTING_STATION_LIST,
   STATION_MASTER: USER_OPERATIONS_ENDPOINTS.CASTING_STATION_LIST,
 };
@@ -34,6 +38,8 @@ export const resolveSchemaApiEndpoint = (endpoint: string): string => {
   if (raw.includes("motors-stage-list")) return USER_OPERATIONS_ENDPOINTS.MOTORS_STAGE_LIST;
   if (raw.includes("approved-motors-list")) return USER_OPERATIONS_ENDPOINTS.APPROVED_MOTORS_LIST;
   if (raw.includes("material-lots")) return USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS;
+  if (raw.includes("materials/specification-list")) return USER_OPERATIONS_ENDPOINTS.MATERIAL_SPECIFICATION_LIST;
+  if (raw.includes("materials-list")) return USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST;
 
   if (raw.startsWith("/api/v1")) return raw;
   if (raw.startsWith("api/v1")) return `/${raw}`;
@@ -42,11 +48,12 @@ export const resolveSchemaApiEndpoint = (endpoint: string): string => {
   return raw.startsWith("/") ? raw : `/${raw}`;
 };
 
-const TEMPLATE_PATTERN = /\{\{(\w+)\}\}/g;
+const TEMPLATE_PATTERN = /\{\{(\w+)\}\}|\$\{(\w+)\}/g;
 
 const resolveTemplateValue = (value: unknown, apiContext?: SchemaApiContext): unknown => {
-  if (typeof value !== "string" || !value.includes("{{")) return value;
-  return value.replace(TEMPLATE_PATTERN, (match, token: string) => {
+  if (typeof value !== "string" || (!value.includes("{{") && !value.includes("${"))) return value;
+  return value.replace(TEMPLATE_PATTERN, (match, braceToken: string, dollarToken: string) => {
+    const token = braceToken ?? dollarToken;
     const ctx = apiContext?.[token];
     return ctx != null && ctx !== "" ? String(ctx) : match;
   });
@@ -116,6 +123,12 @@ export const resolveDataSourceApi = (
     responsePath: typeof api.responsePath === "string" ? api.responsePath : flatResponsePath,
     displayKey: typeof api.displayKey === "string" ? api.displayKey : flatDisplayKey,
     valueKey: typeof api.valueKey === "string" ? api.valueKey : flatValueKey,
+    nestedOptionsKey:
+      typeof api.nestedOptionsKey === "string" ? api.nestedOptionsKey : undefined,
+    parentMatchField:
+      typeof api.parentMatchField === "string" ? api.parentMatchField : undefined,
+    parentMatchContextKey:
+      typeof api.parentMatchContextKey === "string" ? api.parentMatchContextKey : undefined,
   };
 };
 
@@ -136,7 +149,54 @@ const buildSchemaApiPayload = (
   return payload;
 };
 
-const NESTED_LIST_KEYS = ["materials", "items", "list", "records", "lots", "options", "results", "data"] as const;
+const NESTED_LIST_KEYS = [
+  "materials",
+  "specifications",
+  "items",
+  "list",
+  "records",
+  "lots",
+  "options",
+  "results",
+  "data",
+] as const;
+
+export const buildRowApiContext = (
+  apiContext: SchemaApiContext | undefined,
+  row: Record<string, unknown>,
+): SchemaApiContext => ({
+  ...apiContext,
+  ...row,
+});
+
+const hasUnresolvedTemplateTokens = (value: unknown): boolean => {
+  if (typeof value === "string") return /\{\{|\$\{/.test(value);
+  if (Array.isArray(value)) return value.some(hasUnresolvedTemplateTokens);
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some(hasUnresolvedTemplateTokens);
+  }
+  return false;
+};
+
+export const getDependentColumnIds = (
+  columns: Array<{ id: string; dataSource?: SchemaDataSource }>,
+  parentColumnId: string,
+): string[] => {
+  const pattern = new RegExp(`(?:\\$\\{|\\{\\{)${parentColumnId}(?:\\}|\\}\\})`);
+  return columns
+    .filter((column) => {
+      if (column.dataSource?.type !== "api") return false;
+      const api = resolveDataSourceApi(column.dataSource as SchemaDataSource & Record<string, unknown>);
+      if (!api) return false;
+      const serialized = JSON.stringify({
+        requestBody: api.requestBody ?? {},
+        requestField: api.requestField ?? "",
+      });
+      if (pattern.test(serialized)) return true;
+      return api.parentMatchContextKey === parentColumnId;
+    })
+    .map((column) => column.id);
+};
 
 const resolveResponsePath = (root: Record<string, unknown>, path: string): unknown =>
   path
@@ -180,30 +240,101 @@ export const extractSchemaApiOptionsList = (
   return [];
 };
 
+const normalizeMatchValue = (value: unknown) => String(value ?? "").trim().toLowerCase();
+
+const extractNestedOptionsList = (
+  options: Record<string, unknown>[],
+  api: SchemaApiDataSource,
+  apiContext?: SchemaApiContext,
+): Record<string, unknown>[] => {
+  const nestedKey = api.nestedOptionsKey?.trim();
+  const parentMatchField = api.parentMatchField?.trim() || "materialCode";
+  const contextKey = api.parentMatchContextKey?.trim();
+  if (!nestedKey || !contextKey) return options;
+
+  const selected = String(apiContext?.[contextKey] ?? "").trim();
+  if (!selected) return [];
+
+  const selectedKey = normalizeMatchValue(selected);
+  const parent = options.find(
+    (item) => normalizeMatchValue(item[parentMatchField]) === selectedKey,
+  );
+  if (!parent) return [];
+
+  const nested = parent[nestedKey];
+  return Array.isArray(nested) ? (nested as Record<string, unknown>[]) : [];
+};
+
+const schemaApiListCache = new Map<string, Promise<Record<string, unknown>[]>>();
+
+const buildSchemaApiCacheKey = (
+  endpoint: string,
+  method: string,
+  payload: Record<string, unknown>,
+): string => `${method}:${endpoint}:${JSON.stringify(payload)}`;
+
+const fetchSchemaApiOptionsList = async (
+  api: SchemaApiDataSource,
+  apiContext?: SchemaApiContext,
+): Promise<{ list: Record<string, unknown>[]; error: string | null }> => {
+  const endpoint = resolveSchemaApiEndpoint(api.endpoint ?? "");
+  if (!endpoint) return { list: [], error: "API endpoint is not configured." };
+
+  const isCastingStation = endpoint.includes("casting-station");
+  const payload = isCastingStation ? {} : buildSchemaApiPayload(api, apiContext);
+  if (!isCastingStation && hasUnresolvedTemplateTokens(payload)) {
+    return { list: [], error: null };
+  }
+  const method = String(api.method ?? "POST").trim().toUpperCase() === "GET" ? "GET" : "POST";
+  const cacheKey = buildSchemaApiCacheKey(endpoint, method, payload);
+
+  let listPromise = schemaApiListCache.get(cacheKey);
+  if (!listPromise) {
+    listPromise = (async () => {
+      const response =
+        method === "GET"
+          ? await get(endpoint, isCastingStation ? undefined : payload)
+          : await post(endpoint, payload);
+
+      const root = response as Record<string, unknown>;
+      if (root?.success === false) {
+        throw new Error(String(root.message ?? "Unable to load options."));
+      }
+
+      return extractSchemaApiOptionsList(response, api.responsePath);
+    })();
+
+    schemaApiListCache.set(cacheKey, listPromise);
+    listPromise.catch(() => {
+      schemaApiListCache.delete(cacheKey);
+    });
+  }
+
+  try {
+    return { list: await listPromise, error: null };
+  } catch (error) {
+    return {
+      list: [],
+      error: error instanceof Error ? error.message : "Unable to load options.",
+    };
+  }
+};
+
 export const fetchSchemaApiOptions = async (
   api: SchemaApiDataSource,
   apiContext?: SchemaApiContext,
 ): Promise<{ options: Record<string, unknown>[]; error: string | null }> => {
-  const endpoint = resolveSchemaApiEndpoint(api.endpoint ?? "");
-  if (!endpoint) return { options: [], error: "API endpoint is not configured." };
-
-  const isCastingStation = endpoint.includes("casting-station");
-  const payload = isCastingStation ? {} : buildSchemaApiPayload(api, apiContext);
-  const method = String(api.method ?? "POST").trim().toUpperCase() === "GET" ? "GET" : "POST";
-
-  try {
-    const response =
-      method === "GET" ? await get(endpoint, isCastingStation ? undefined : payload) : await post(endpoint, payload);
-
-    const root = response as Record<string, unknown>;
-    if (root?.success === false) {
-      return { options: [], error: String(root.message ?? "Unable to load options.") };
-    }
-
-    return { options: extractSchemaApiOptionsList(response, api.responsePath), error: null };
-  } catch {
-    return { options: [], error: "Unable to load options." };
+  const nestedKey = api.nestedOptionsKey?.trim();
+  const contextKey = api.parentMatchContextKey?.trim();
+  if (nestedKey && contextKey) {
+    const selected = String(apiContext?.[contextKey] ?? "").trim();
+    if (!selected) return { options: [], error: null };
   }
+
+  const { list, error } = await fetchSchemaApiOptionsList(api, apiContext);
+  if (error) return { options: [], error };
+
+  return { options: extractNestedOptionsList(list, api, apiContext), error: null };
 };
 
 export const fetchSchemaDataSourceOptions = async (
@@ -231,6 +362,24 @@ export const resolveSchemaOptionKeys = (
   if (sample && "motorStage" in sample) return { displayKey: displayKey ?? "motorStage", valueKey: valueKey ?? "motorStage" };
   if (sample && "motorId" in sample) return { displayKey: displayKey ?? "motorId", valueKey: valueKey ?? "motorId" };
   if (sample && "buildingName" in sample) return { displayKey: displayKey ?? "buildingName", valueKey: valueKey ?? "buildingId" };
+  if (sample && "specificationName" in sample) {
+    return {
+      displayKey: displayKey ?? "specificationName",
+      valueKey: valueKey ?? ("specificationCode" in sample ? "specificationCode" : "specificationName"),
+    };
+  }
+  if (sample && "gradeName" in sample) {
+    return {
+      displayKey: displayKey ?? "gradeName",
+      valueKey: valueKey ?? ("gradeCode" in sample ? "gradeCode" : "gradeName"),
+    };
+  }
+  if (sample && "materialName" in sample) {
+    return {
+      displayKey: displayKey ?? "materialName",
+      valueKey: valueKey ?? ("materialCode" in sample ? "materialCode" : "materialName"),
+    };
+  }
 
   return { displayKey: displayKey ?? "label", valueKey: valueKey ?? "value" };
 };

@@ -1,5 +1,6 @@
-import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress } from "@mui/material";
 import CasePrepSelect from "../../manufacturing/CasePreparation/CasePrepSelect";
+import CasePrepTextField from "../../manufacturing/CasePreparation/CasePrepTextField";
 import {
   STF_FLOW_LABELS,
   STF_MOTOR_TYPE_OPTIONS,
@@ -57,37 +58,29 @@ const STFFlowBar = ({
           />
 
           {isMainMotor ? (
-            <Box sx={flowBar.selectField?.(220)}>
-              <Typography component="label" sx={flowBar.selectLabel}>
-                {L.motorIdNo}
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={motorIdNo}
-                placeholder={L.motorIdNoPlaceholder}
-                onChange={(event) => onMotorIdNoChange(event.target.value)}
-                sx={flowBar.textField}
-              />
-            </Box>
+            <CasePrepTextField
+              label={L.motorIdNo}
+              value={motorIdNo}
+              placeholder={L.motorIdNoPlaceholder}
+              theme={theme}
+              onChange={onMotorIdNoChange}
+            />
           ) : null}
-
-          <Button
-            variant="contained"
-            disabled={!canLoad || schemaLoading || formLoaded}
-            onClick={onLoadForm}
-            sx={flowBar.loadButton}
-          >
-            {schemaLoading ? (
-              <>
-                <CircularProgress size={16} sx={{ color: "#fff", mr: 1 }} />
-                {L.loadingSchema}
-              </>
-            ) : (
-              L.loadForm
-            )}
-          </Button>
         </Box>
+
+        {selectedMotorType ? (
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="contained"
+              size="small"
+              disabled={!canLoad || schemaLoading || formLoaded}
+              onClick={onLoadForm}
+              startIcon={schemaLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
+            >
+              {schemaLoading ? L.loadingSchema : L.loadForm}
+            </Button>
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );

@@ -13,40 +13,22 @@ export type QCDivisionCreatePayload = {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-  inProcessChecks: {
-    rm_particleSize: string;
-    rm_moisture: string;
-    mx_pre_homogeneity: string;
-    mx_pre_moisture: string;
-    mx_fin_viscosity: string;
-    lp_moisture: string;
-    cast_flowRate: string;
-    cast_viscosity: string;
-    dc_load: string;
-    tr_dimension: string;
-    lf_mechProps: string;
-    ir_mechProps: string;
-  };
+  schemaVersion?: string;
+  schemaType?: string;
+  division?: string | null;
+  subType?: string | null;
+  sections: unknown[];
 };
 
 export type QCDivisionUpdatePayload = {
   formId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "UPDATE";
-  inProcessChecks: {
-    rm_particleSize: string;
-    rm_moisture: string;
-    mx_pre_homogeneity: string;
-    mx_pre_moisture: string;
-    mx_fin_viscosity: string;
-    lp_moisture: string;
-    cast_flowRate: string;
-    cast_viscosity: string;
-    dc_load: string;
-    tr_dimension: string;
-    lf_mechProps: string;
-    ir_mechProps: string;
-  };
+  schemaVersion?: string;
+  schemaType?: string;
+  division?: string | null;
+  subType?: string | null;
+  sections: unknown[];
 };
 
 export type QCDivisionDetailsPayload = {

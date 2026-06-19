@@ -1,4 +1,6 @@
-import type { QCDivisionFormState } from "./QCDivisionFormModel";
+import type { QualityControlFormState } from "./QualityControlFormModel";
+import { mapQualityControlDetailsToFormState } from "./QualityControlFormModel";
+import type { SchemaSectionSubmission } from "../../schema-engine";
 
 export type QCDivisionSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
 
@@ -23,7 +25,9 @@ export class QCDivisionDetailsModel {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: string;
-  inProcessChecks: QCDivisionFormState;
+  division?: string | null;
+  subType?: string | null;
+  sections?: SchemaSectionSubmission[];
   workflowInsights: {
     currentStatus: string;
     rejectionReason: string | null;
@@ -34,20 +38,9 @@ export class QCDivisionDetailsModel {
     this.batchId = payload?.batchId ?? "";
     this.subDepartmentId = Number(payload?.subDepartmentId ?? 0);
     this.formSubmissionType = payload?.formSubmissionType ?? "";
-    this.inProcessChecks = {
-      rm_particleSize: payload?.inProcessChecks?.rm_particleSize ?? "",
-      rm_moisture: payload?.inProcessChecks?.rm_moisture ?? "",
-      mx_pre_homogeneity: payload?.inProcessChecks?.mx_pre_homogeneity ?? "",
-      mx_pre_moisture: payload?.inProcessChecks?.mx_pre_moisture ?? "",
-      mx_fin_viscosity: payload?.inProcessChecks?.mx_fin_viscosity ?? "",
-      lp_moisture: payload?.inProcessChecks?.lp_moisture ?? "",
-      cast_flowRate: payload?.inProcessChecks?.cast_flowRate ?? "",
-      cast_viscosity: payload?.inProcessChecks?.cast_viscosity ?? "",
-      dc_load: payload?.inProcessChecks?.dc_load ?? "",
-      tr_dimension: payload?.inProcessChecks?.tr_dimension ?? "",
-      lf_mechProps: payload?.inProcessChecks?.lf_mechProps ?? "",
-      ir_mechProps: payload?.inProcessChecks?.ir_mechProps ?? "",
-    };
+    this.division = payload?.division ?? null;
+    this.subType = payload?.subType ?? null;
+    this.sections = Array.isArray(payload?.sections) ? payload.sections : undefined;
     this.workflowInsights = {
       currentStatus: payload?.workflowInsights?.currentStatus ?? "",
       rejectionReason: payload?.workflowInsights?.rejectionReason ?? null,
@@ -58,35 +51,15 @@ export class QCDivisionDetailsModel {
     return new QCDivisionDetailsModel(apiResponse?.data ?? {});
   }
 
-  static toFormState(model: QCDivisionDetailsModel): QCDivisionFormState {
-    return {
-      rm_particleSize: model.inProcessChecks?.rm_particleSize ?? "",
-      rm_moisture: model.inProcessChecks?.rm_moisture ?? "",
-      mx_pre_homogeneity: model.inProcessChecks?.mx_pre_homogeneity ?? "",
-      mx_pre_moisture: model.inProcessChecks?.mx_pre_moisture ?? "",
-      mx_fin_viscosity: model.inProcessChecks?.mx_fin_viscosity ?? "",
-      lp_moisture: model.inProcessChecks?.lp_moisture ?? "",
-      cast_flowRate: model.inProcessChecks?.cast_flowRate ?? "",
-      cast_viscosity: model.inProcessChecks?.cast_viscosity ?? "",
-      dc_load: model.inProcessChecks?.dc_load ?? "",
-      tr_dimension: model.inProcessChecks?.tr_dimension ?? "",
-      lf_mechProps: model.inProcessChecks?.lf_mechProps ?? "",
-      ir_mechProps: model.inProcessChecks?.ir_mechProps ?? "",
-    };
+  static toFormState(model: QCDivisionDetailsModel): QualityControlFormState {
+    return mapQualityControlDetailsToFormState({
+      formId: model.formId,
+      batchId: model.batchId,
+      subDepartmentId: model.subDepartmentId,
+      formSubmissionType: model.formSubmissionType,
+      division: model.division,
+      subType: model.subType,
+      sections: model.sections,
+    });
   }
 }
-
-export const mapQCDivisionPayload = (form: QCDivisionFormState): QCDivisionFormState => ({
-  rm_particleSize: form?.rm_particleSize ?? "",
-  rm_moisture: form?.rm_moisture ?? "",
-  mx_pre_homogeneity: form?.mx_pre_homogeneity ?? "",
-  mx_pre_moisture: form?.mx_pre_moisture ?? "",
-  mx_fin_viscosity: form?.mx_fin_viscosity ?? "",
-  lp_moisture: form?.lp_moisture ?? "",
-  cast_flowRate: form?.cast_flowRate ?? "",
-  cast_viscosity: form?.cast_viscosity ?? "",
-  dc_load: form?.dc_load ?? "",
-  tr_dimension: form?.tr_dimension ?? "",
-  lf_mechProps: form?.lf_mechProps ?? "",
-  ir_mechProps: form?.ir_mechProps ?? "",
-});

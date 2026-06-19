@@ -89,9 +89,12 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
     ? normalizeApiSchemaSections(rawSections)
     : (rawSections as SchemaSection[]);
 
-  const meta = (dataPayload.meta ?? documentRoot.meta ?? envelope.meta ?? root.meta) as
-    | SchemaMeta
-    | undefined;
+  const formDetails = dataPayload.formDetails as SchemaMeta | undefined;
+  const meta = (dataPayload.meta ??
+    formDetails ??
+    documentRoot.meta ??
+    envelope.meta ??
+    root.meta) as SchemaMeta | undefined;
 
   const batchType = envelope.batchType ?? documentRoot.batchType ?? dataPayload.batchType;
   const motorStage = envelope.motorStage ?? documentRoot.motorStage ?? dataPayload.motorStage;

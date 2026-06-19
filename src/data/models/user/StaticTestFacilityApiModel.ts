@@ -1,4 +1,5 @@
 import {
+  FORM_SECTIONS_KEY,
   mapStaticTestFacilityDetailsToFormState,
   mapStaticTestFacilityFormStateToPayload,
   type StaticTestFacilityFormState,
@@ -6,6 +7,11 @@ import {
 import type { SchemaSectionSubmission } from "../../../schema-engine";
 
 export type STFSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
+
+export type STFMotorPayload = {
+  motorId: string;
+  staticTestingDetails: Record<string, unknown>;
+};
 
 export class STFSubmitResponseModel {
   formId: string;
@@ -47,7 +53,9 @@ export class STFDetailsModel {
     this.formSubmissionType = payload?.formSubmissionType ?? "";
     this.subType = payload?.subType ?? "";
     this.motorIdNo = payload?.motorIdNo ?? "";
-    this.sections = Array.isArray(payload?.sections) ? payload.sections : [];
+
+    this.sections = extractSectionsFromPayload(payload);
+
     this.workflowInsights = {
       currentStatus: payload?.workflowInsights?.currentStatus ?? "",
       rejectionReason: payload?.workflowInsights?.rejectionReason ?? null,
@@ -70,6 +78,22 @@ export class STFDetailsModel {
     });
   }
 }
+
+const extractSectionsFromPayload = (payload: any): SchemaSectionSubmission[] => {
+  if (Array.isArray(payload?.sections) && payload.sections.length > 0) {
+    return payload.sections;
+  }
+
+  const motors = payload?.motors;
+  if (Array.isArray(motors) && motors.length > 0) {
+    const formSections = motors[0]?.staticTestingDetails?.[FORM_SECTIONS_KEY];
+    if (Array.isArray(formSections) && formSections.length > 0) {
+      return formSections as SchemaSectionSubmission[];
+    }
+  }
+
+  return [];
+};
 
 export const mapSTFPayload = (form: StaticTestFacilityFormState) =>
   mapStaticTestFacilityFormStateToPayload(form);

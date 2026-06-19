@@ -280,6 +280,7 @@ export const USER_RAW_MATERIAL_REVALIDATION_ENDPOINTS = {
 };
 
 export const USER_QC_DIVISION_ENDPOINTS = {
+  SCHEMA: `${API_BASE}/user/quality-control/schema`,
   CREATE_FORM: `${API_BASE}/user/qc-division/create`,
   FORM_DETAILS: `${API_BASE}/user/qc-division/details`,
   UPDATE_FORM: `${API_BASE}/user/qc-division/update`,

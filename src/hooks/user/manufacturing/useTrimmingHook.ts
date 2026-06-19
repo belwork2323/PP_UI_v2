@@ -33,7 +33,7 @@ import { useCuringMotorStages } from "./useCuringMotorStages";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 import type { SchemaDocumentV2, SchemaFormValues } from "../../../schema-engine";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 type TrimmingBatch = {
   batchId: string;
@@ -91,7 +91,9 @@ export const useTrimmingHook = () => {
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [formData, setFormData] = useState<TrimmingFormState>(createDefaultTrimmingFormState());
   const [initialSnapshot, setInitialSnapshot] = useState("{}");
-
+ const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [selectedMotorStage, setSelectedMotorStage] = useState("");
   const [motorCount, setMotorCount] = useState<number | "">("");
   const [draftMotorIds, setDraftMotorIds] = useState<string[]>([]);
@@ -388,7 +390,7 @@ export const useTrimmingHook = () => {
 
           const detailsResponse = await trimmingController.fetchFormDetails({
             formId: batch.formId,
-            subDepartmentId,
+            // subDepartmentId,
           });
 
           if (!detailsResponse?.success || !detailsResponse?.data) {
@@ -469,7 +471,34 @@ export const useTrimmingHook = () => {
     },
     [fetchTrimmingSchemaDocument, showAlert, subDepartmentId],
   );
+  const handleViewTrimmingDetails = useCallback(
+    async (row: any) => {
+      if (!row?.formId) return;
 
+      setDetailsLoading(true);
+
+      try {
+        const response =
+          await trimmingController.fetchFormDetails({
+            formId: row.formId,
+          });
+
+        if (response?.success) {
+          setDetailsRow(row);
+          setDetailsData(response.data);
+          setView("details");
+        }
+      } finally {
+        setDetailsLoading(false);
+      }
+    },
+    [],
+  );
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
   const handleFillForm = useCallback(
     async (batch: TrimmingBatch) => await openFormWithResolvedData(batch, false),
     [openFormWithResolvedData],
@@ -599,8 +628,9 @@ export const useTrimmingHook = () => {
           }
           response = await trimmingController.updateForm({
             formId: activeBatch.formId,
+            batchId: activeBatch.batchId,
             subDepartmentId,
-            formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
+            formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
             ...payloadBody,
           });
         }
@@ -687,6 +717,11 @@ export const useTrimmingHook = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewTrimmingDetails,
+    handleBackFromDetails,
   };
 };
 

@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, Typography, IconButton, Tooltip, Stack, alpha } from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -22,6 +23,10 @@ const {
   straighten: StraightenRoundedIcon,
 } = icons.user.manufacturing.trimming.list;
 
+// Condition utility to show the details action button matching workflow specifications
+const canViewTrimmingDetails = (status: string) =>
+  status === OPERATION_STATUS.WAITING_FOR_APPROVAL || status === OPERATION_STATUS.APPROVED;
+
 export const TR_STATUS_CONFIG = getOperationStatusConfig({
   initiated: HourglassEmptyRoundedIcon,
   inProgress: PlayCircleOutlineRoundedIcon,
@@ -31,62 +36,6 @@ export const TR_STATUS_CONFIG = getOperationStatusConfig({
 });
 
 const S = STRINGS.MANUFACTURING;
-
-const USE_MOCK_TR_BATCH = import.meta.env.DEV;
-
-const MOCK_TR_BATCHES = [
-  {
-    id: "mock-tr-s0",
-    batchId: "BATCH-2026-TR-S0-001",
-    projectId: "PRJ-2026-0001",
-    projectName: "PRJ-2026-0001",
-    motorId: "MTR-301",
-    motorIds: ["MTR-301", "MTR-302", "MTR-303"],
-    motorType: "0",
-    motorStage: 0,
-    numberOfMotors: 3,
-    assignedTo: { fullName: "EMP009" },
-    systemManagerId: "EMP009",
-    createdOn: "2026-04-17T10:00:00Z",
-    priority: "High",
-    trStatus: OPERATION_STATUS.INITIATED,
-    formId: null,
-  },
-  {
-    id: "mock-tr-s0-b",
-    batchId: "BATCH-2026-TR-S0-002",
-    projectId: "PRJ-2026-0001",
-    projectName: "PRJ-2026-0001",
-    motorId: "MTR-501",
-    motorIds: ["MTR-501", "MTR-502", "MTR-503"],
-    motorType: "0",
-    motorStage: 0,
-    numberOfMotors: 3,
-    assignedTo: { fullName: "EMP011" },
-    systemManagerId: "EMP011",
-    createdOn: "2026-04-19T10:00:00Z",
-    priority: "Medium",
-    trStatus: OPERATION_STATUS.INITIATED,
-    formId: null,
-  },
-  {
-    id: "mock-tr-s1",
-    batchId: "BATCH-2026-TR-S1-001",
-    projectId: "PRJ-2026-0002",
-    projectName: "PRJ-2026-0002",
-    motorId: "MTR-401",
-    motorIds: ["MTR-401", "MTR-402"],
-    motorType: "1",
-    motorStage: 1,
-    numberOfMotors: 2,
-    assignedTo: { fullName: "EMP009" },
-    systemManagerId: "EMP009",
-    createdOn: "2026-04-18T10:00:00Z",
-    priority: "Medium",
-    trStatus: OPERATION_STATUS.INITIATED,
-    formId: null,
-  },
-];
 
 const TrimmingList = ({ hookState, rowsPerPageOptions }: any) => {
   const mode = useThemeStore((state) => state.mode);
@@ -107,28 +56,13 @@ const TrimmingList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewTrimmingDetails, // Wired directly from useTrimmingHook setup
   } = hookState;
 
-  const displayRows = useMemo(
-    () => (USE_MOCK_TR_BATCH ? [...MOCK_TR_BATCHES, ...batches] : batches),
-    [batches],
-  );
-
-  const displayTotalRecords = USE_MOCK_TR_BATCH
-    ? totalRecords + MOCK_TR_BATCHES.length
-    : totalRecords;
-
-  const displayStatusCounts = useMemo(() => {
-    if (!USE_MOCK_TR_BATCH) return statusCounts;
-    const next = { ...statusCounts };
-    MOCK_TR_BATCHES.forEach((row) => {
-      const status = row.trStatus;
-      next[status] = (next[status] ?? 0) + 1;
-      next[STRINGS.USER_BATCH_LIST.FILTER_ALL] =
-        next[STRINGS.USER_BATCH_LIST.FILTER_ALL] ?? displayTotalRecords;
-    });
-    return next;
-  }, [statusCounts, displayTotalRecords]);
+  // Add structural fallbacks to avoid map breakdowns over empty arrays
+  const displayRows = Array.isArray(batches) ? batches : [];
+  const displayTotalRecords = totalRecords ?? 0;
+  const displayStatusCounts = statusCounts ?? {};
 
   const statusConfig = useMemo(
     () =>
@@ -258,17 +192,36 @@ const TrimmingList = ({ hookState, rowsPerPageOptions }: any) => {
       onStatusFilterChange={setStatusFilter}
       emptyText={S.TRIMMING.EMPTY_TEXT}
       renderAction={(row: any) => (
-        <UserWorkflowStatusAction
-          status={row.trStatus}
-          row={row}
-          statusMap={OPERATION_STATUS}
-          onFillForm={handleFillForm}
-          onEditForm={handleEditForm}
-          fillLabel={S.BATCH_LIST.FILL_ACTION}
-          continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
-          editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
-          theme={theme}
-        />
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          {canViewTrimmingDetails(row.trStatus) ? (
+            <Tooltip title={S.BATCH_LIST.VIEW_DETAILS_TOOLTIP || "View Details"} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={() => handleViewTrimmingDetails(row)}
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${alpha(theme.palette.primaryLight, 0.35)}`,
+                  borderRadius: 1.5,
+                  "&:hover": { background: alpha(theme.palette.primaryLight, 0.08) },
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.trStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+              theme={theme}
+            />
+          )}
+        </Stack>
       )}
     />
   );

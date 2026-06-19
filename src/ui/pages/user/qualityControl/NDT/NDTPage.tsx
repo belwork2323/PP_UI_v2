@@ -4,6 +4,7 @@ import ConfirmAlertDialog from "../../../../components/common/ConfirmAlertDialog
 import UserWorkflowFormHeader from "../../../../components/custom/UserWorkflowFormHeader";
 import NDTList from "./NDTList";
 import NDTForm from "./NDTForm";
+import NDTDetailsView from "./NDTDetailsView";
 import { useThemeStore } from "../../../../../app/store/themeStore";
 import getQualityControlTheme from "../../../../../app/theme/custom_themes/user/qualityControl/qualityControl_theme";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
@@ -32,6 +33,10 @@ const NDTPage = () => {
     handleDiscardAndBack,
     handleSaveDraft,
     handleSubmit,
+    handleBackFromDetails,
+    detailsRow,
+    detailsData,
+    detailsLoading,
     motorCount,
     draftMotorIds,
     addedMotors,
@@ -51,6 +56,14 @@ const NDTPage = () => {
     return (
       <Box sx={theme.workflow.animatedContainer}>
         <NDTList hookState={hookState} />
+      </Box>
+    );
+  }
+
+  if (view === "details" && detailsRow) {
+    return (
+      <Box sx={theme.workflow.animatedContainer}>
+        <NDTDetailsView row={detailsRow} data={detailsData} loading={detailsLoading} onBack={handleBackFromDetails} />
       </Box>
     );
   }
@@ -103,7 +116,12 @@ const NDTPage = () => {
                   border: "1.5px solid #D5D8DC",
                 }}
               >
-                <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "center" }} justifyContent="space-between" gap={1.5}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  alignItems={{ sm: "center" }}
+                  justifyContent="space-between"
+                  gap={1.5}
+                >
                   <Box>
                     <Box component="span" sx={{ fontSize: "0.76rem", fontWeight: 700, color: "#1C2833" }}>
                       {canAct ? strings.READY_TO_SUBMIT : strings.NOT_READY_TO_SUBMIT}

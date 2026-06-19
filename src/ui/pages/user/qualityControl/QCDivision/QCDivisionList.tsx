@@ -129,11 +129,11 @@ const QCDivisionList = ({ hookState, rowsPerPageOptions }: any) => {
   <UserBatchList
     rows={batches}
     columns={columns}
-    statusField="qcDivStatus"
+    statusField="qcStatus"
     statusConfig={statusConfig}
     filters={[{ field: "priority", options: ["Critical", "High", "Medium", "Low"] }]}
     searchFields={["batchId", "motorId"]}
-    highlightRow={(row: any) => row.qcDivStatus === OPERATION_STATUS.REJECTED}
+    highlightRow={(row: any) => row.qcStatus === OPERATION_STATUS.REJECTED}
     highlightColor={theme.palette.danger}
     rowsPerPageOptions={rowsPerPageOptions}
     tableLabel={S.QC_DIVISION.TABLE_LABEL}
@@ -151,7 +151,7 @@ const QCDivisionList = ({ hookState, rowsPerPageOptions }: any) => {
     isLoading={loading}
     renderAction={(row: any) => (
       <UserWorkflowStatusAction
-        status={row.qcDivStatus}
+        status={row.qcStatus}
         row={row}
         statusMap={OPERATION_STATUS}
         onFillForm={handleFillForm}

@@ -2,13 +2,25 @@ import type { SchemaBlock, SchemaDocumentV2, SchemaFieldBlock, SchemaRepeatConfi
 import { applyFormulaColumns } from "../rules/formulaEval";
 import { resolveSchemaCountToken, type SchemaSetupContext } from "../utils/setupContext";
 import { flattenTableColumns, walkBlocks } from "../utils/schemaUtils";
-import { PRESET_ROW_META_KEYS, TABLE_ROW_RUNTIME_KEYS } from "../utils/tableRowUtils";
+import {
+  applyExtraColumnCellsToRows,
+  buildInitialExtraColumns,
+  hasTableCommitGroup,
+  isWrappedTableValue,
+  PRESET_ROW_META_KEYS,
+  TABLE_ROW_RUNTIME_KEYS,
+  TABLE_VALUE_META_KEYS,
+  wrapTableValue,
+} from "../utils/tableRowUtils";
+import { buildEmptyPickerRow } from "../rules/tableCommitGroup";
 
 export type SchemaFormValues = Record<string, unknown>;
 
 export type SchemaSectionSubmission = {
   sectionId: string;
   sectionData: unknown[];
+  premixNo?: number;
+  subType?: string;
 };
 
 export const cloneValue = <T>(value: T): T => {
@@ -31,6 +43,14 @@ export const buildTableRows = (table: SchemaTableBlock): Record<string, unknown>
   const columns = flattenTableColumns(table.columns);
   const autoKey = table.rows?.autoIncrementKey ?? "srNo";
   const presetRows = table.rows?.presetRows ?? [];
+
+  if (hasTableCommitGroup(table)) {
+    const pickerCount = Math.max(table.rows?.defaultCount ?? 1, 1);
+    return Array.from({ length: pickerCount }, (_, rowIndex) =>
+      buildEmptyPickerRow(columns, autoKey),
+    ).map((row, rowIndex) => ({ ...row, [autoKey]: rowIndex + 1 }));
+  }
+
   const count = Math.max(table.rows?.defaultCount ?? 1, presetRows.length);
 
   return Array.from({ length: count }, (_, rowIndex) => {
@@ -96,8 +116,14 @@ const initBlockValue = (
   switch (block.type) {
     case "field":
       return block.defaultValue ?? "";
-    case "table":
+    case "table": {
+      const extraColumns = buildInitialExtraColumns(block);
+      const rows = applyExtraColumnCellsToRows(buildTableRows(block), extraColumns);
+      if (block.allowAddColumn || extraColumns.length > 0) {
+        return wrapTableValue(rows, extraColumns);
+      }
       return buildTableRows(block);
+    }
     case "matrix":
       return { columns: [], rows: [] };
     case "group":
@@ -160,13 +186,16 @@ export const buildInitialFormValues = (
 };
 
 const sanitizeSubmissionValue = (value: unknown): unknown => {
+  if (isWrappedTableValue(value)) {
+    return sanitizeSubmissionValue(value.rows);
+  }
   if (Array.isArray(value)) {
     return value.map(sanitizeSubmissionValue);
   }
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
     Object.entries(value as Record<string, unknown>).forEach(([key, val]) => {
-      if (TABLE_ROW_RUNTIME_KEYS.has(key)) return;
+      if (TABLE_ROW_RUNTIME_KEYS.has(key) || TABLE_VALUE_META_KEYS.has(key)) return;
       out[key] = sanitizeSubmissionValue(val);
     });
     return out;

@@ -1,10 +1,9 @@
 import {
-  buildStfSectionPayload,
   createStfInitialValues,
   hydrateStfValuesFromSections,
   mapStfSubType,
   schemaValuesHaveUserData,
-  STF_SCHEMA_TYPE,
+  toSectionSubmissions,
   type StfSubType,
   type SchemaDocumentV2,
   type SchemaFormValues,
@@ -35,12 +34,13 @@ export type StaticTestFacilityDetails = {
   sections?: SchemaSectionSubmission[];
 };
 
+export type StaticTestFacilityMotor = {
+  motorId: string;
+  staticTestingDetails: Record<string, unknown>;
+};
+
 export type StaticTestFacilityFormBody = {
-  schemaVersion?: string;
-  schemaType?: string;
-  subType?: StfSubType;
-  motorIdNo?: string;
-  sections: SchemaSectionSubmission[];
+  motors: StaticTestFacilityMotor[];
 };
 
 export const createDefaultStaticTestFacilityFormState = (): StaticTestFacilityFormState =>
@@ -66,11 +66,20 @@ export const hydrateStaticTestFacilityFormState = (
   schemaFormLoaded: true,
 });
 
+const extractSections = (
+  details: Partial<StaticTestFacilityDetails>,
+): SchemaSectionSubmission[] | undefined => {
+  if (Array.isArray(details?.sections) && details.sections.length > 0) {
+    return details.sections;
+  }
+  return undefined;
+};
+
 export const mapStaticTestFacilityDetailsToFormState = (
   details: Partial<StaticTestFacilityDetails>,
 ): StaticTestFacilityFormState => {
   const defaults = createDefaultStaticTestFacilityFormState();
-  const savedSections = Array.isArray(details?.sections) ? details.sections : undefined;
+  const savedSections = extractSections(details);
   const subType = details?.subType ? mapStfSubType(details.subType) : null;
 
   return {
@@ -82,19 +91,31 @@ export const mapStaticTestFacilityDetailsToFormState = (
   };
 };
 
+const FORM_SECTIONS_KEY = "formSections";
+
 export const mapStaticTestFacilityFormStateToPayload = (
   form: StaticTestFacilityFormState,
 ): StaticTestFacilityFormBody => {
   const schema = form.stfSchema;
+  const motorId = form.motorIdNo?.trim() || "MOTOR-001";
+
+  if (!schema) {
+    return { motors: [{ motorId, staticTestingDetails: {} }] };
+  }
+
+  const sections = toSectionSubmissions(schema, form.schemaFormValues);
 
   return {
-    schemaVersion: schema?.schemaVersion,
-    schemaType: schema?.schemaType ?? STF_SCHEMA_TYPE,
-    subType: form.subType ?? undefined,
-    motorIdNo: form.motorIdNo?.trim() || undefined,
-    sections: schema ? buildStfSectionPayload(schema, form.schemaFormValues) : [],
+    motors: [
+      {
+        motorId,
+        staticTestingDetails: { [FORM_SECTIONS_KEY]: sections },
+      },
+    ],
   };
 };
 
 export const hasAnyStaticTestFacilityValue = (form: StaticTestFacilityFormState) =>
   schemaValuesHaveUserData(form.schemaFormValues ?? {});
+
+export { FORM_SECTIONS_KEY };

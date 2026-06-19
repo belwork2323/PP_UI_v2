@@ -16,7 +16,9 @@ type ApiField = {
   required?: boolean;
   unit?: string;
   formula?: string;
-  dataSource?: string;
+  dataSource?: string | Record<string, unknown>;
+  displayKey?: string;
+  valueKey?: string;
 };
 
 type ApiTableColumn = ApiField;
@@ -34,6 +36,8 @@ type ApiSpecialRow = {
   instruction?: string;
 };
 
+type ApiPredefinedRow = Record<string, unknown>;
+
 type ApiTable = {
   tableId?: string;
   id?: string;
@@ -41,36 +45,102 @@ type ApiTable = {
   tableType?: string;
   dynamicRows?: boolean;
   addRowAllowed?: boolean;
+  addColumnsAllowed?: boolean;
   rowGenerationType?: string;
   rowGenerationSource?: string;
   rowHeaders?: string[];
   rows?: ApiTableRow[];
+  predefinedRows?: ApiPredefinedRow[];
   specialRows?: ApiSpecialRow[];
   columns?: ApiTableColumn[];
 };
 
-type ApiSection = {
+type ApiSectionBase = {
   sectionId?: string;
   sectionName?: string;
   id?: string;
   title?: string;
   type?: string;
-  addRowAllowed?: boolean;
-  columns?: ApiTableColumn[];
   fields?: ApiField[];
   tables?: ApiTable[];
   ui?: SchemaSection["ui"];
   children?: SchemaSection["children"];
 };
 
+/** Legacy API: when type is "table", table props (columns, predefinedRows, etc.) sit on the section root. */
+type ApiFlatTableSection = ApiSectionBase &
+  Omit<ApiTable, "tableId" | "id" | "title"> & {
+    type: "table";
+    columns: ApiTableColumn[];
+  };
+
+type ApiSection = ApiSectionBase | ApiFlatTableSection;
+
+const isFlatTableSection = (section: ApiSection): section is ApiFlatTableSection =>
+  (section.type === "table" || section.type === "parameterTable") &&
+  Array.isArray((section as ApiFlatTableSection).columns);
+
+const toApiTableFromSection = (section: ApiFlatTableSection): ApiTable => ({
+  tableId: section.sectionId ?? section.id,
+  columns: section.columns,
+  predefinedRows: section.predefinedRows,
+  addRowAllowed: section.addRowAllowed,
+  addColumnsAllowed: section.addColumnsAllowed,
+  dynamicRows: section.addRowAllowed !== false,
+  rows: section.rows,
+  rowHeaders: section.rowHeaders,
+  specialRows: section.specialRows,
+  rowGenerationSource: section.rowGenerationSource,
+  rowGenerationType: section.rowGenerationType,
+});
+
+const resolveApiColumnId = (column: ApiTableColumn) =>
+  String(column.fieldId ?? column.id ?? "");
+
+const mapPredefinedRowToPreset = (
+  row: ApiPredefinedRow,
+  columns: ApiTableColumn[],
+): Record<string, unknown> => {
+  if (row.type === "header") {
+    return { type: "header", label: row.label ?? row.instruction ?? "" };
+  }
+
+  const preset: Record<string, unknown> = { readonly: true };
+  Object.entries(row).forEach(([key, value]) => {
+    const column = columns.find(
+      (col) => resolveApiColumnId(col).toLowerCase() === key.toLowerCase(),
+    );
+    if (column) {
+      preset[resolveApiColumnId(column)] = value;
+    }
+  });
+
+  return preset;
+};
+
+const buildPresetRowsFromPredefinedRows = (
+  predefinedRows: ApiPredefinedRow[] | undefined,
+  columns: ApiTableColumn[],
+): Record<string, unknown>[] => {
+  if (!predefinedRows?.length) return [];
+  return predefinedRows.map((row) => mapPredefinedRowToPreset(row, columns));
+};
+
 const mapFieldType = (
   type: string | undefined,
   readonly?: boolean,
+  columnId?: string,
 ): { fieldType: string; readonly?: boolean } => {
   const normalized = String(type ?? "").toLowerCase();
-  if (normalized === "autoincrement") return { fieldType: "serial" };
+  const id = String(columnId ?? "").toUpperCase();
+  if (normalized === "autoincrement" || id === "SR_NO" || id === "S_NO") {
+    return { fieldType: "serial", readonly: true };
+  }
   if (normalized === "readonly") return { fieldType: "text", readonly: true };
   if (normalized === "formula") return { fieldType: "formula" };
+  if (normalized === "number" && readonly && /^(SR[_\s]?NO|S\.?\s*NO\.?)$/i.test(id)) {
+    return { fieldType: "serial", readonly: true };
+  }
   return { fieldType: normalized || "text", readonly: readonly || undefined };
 };
 
@@ -78,6 +148,49 @@ const mapDataSource = (dataSource?: string): SchemaDataSource | undefined => {
   const key = String(dataSource ?? "").trim();
   if (!key) return undefined;
   return { type: "api", api: { endpoint: key } };
+};
+
+const normalizeApiDataSource = (
+  field: ApiField,
+): SchemaDataSource | undefined => {
+  const raw = field.dataSource;
+  if (!raw) return undefined;
+
+  if (typeof raw === "string") return mapDataSource(raw);
+
+  if (typeof raw !== "object") return undefined;
+
+  const ds = raw as Record<string, unknown>;
+  const type = String(ds.type ?? "api").toLowerCase();
+
+  if (type === "static" && Array.isArray(ds.options)) {
+    return {
+      type: "static",
+      options: ds.options as Array<{ label: string; value: string }>,
+    };
+  }
+
+  if (type === "api") {
+    const apiValue = ds.api;
+    const endpoint =
+      typeof apiValue === "string"
+        ? apiValue
+        : String((apiValue as Record<string, unknown> | undefined)?.endpoint ?? "");
+
+    return {
+      type: "api",
+      api: {
+        endpoint,
+        method: ds.method as "GET" | "POST" | "PUT" | "DELETE" | undefined,
+        requestBody: ds.requestBody as Record<string, unknown> | undefined,
+        responsePath: typeof ds.responsePath === "string" ? ds.responsePath : undefined,
+        displayKey: field.displayKey ?? (typeof ds.displayKey === "string" ? ds.displayKey : undefined),
+        valueKey: field.valueKey ?? (typeof ds.valueKey === "string" ? ds.valueKey : undefined),
+      },
+    };
+  }
+
+  return undefined;
 };
 
 const applyFieldMeta = (
@@ -93,17 +206,18 @@ const applyFieldMeta = (
 };
 
 const normalizeApiField = (field: ApiField): SchemaFieldBlock => {
-  const mapped = mapFieldType(field.type, field.readonly);
+  const id = String(field.fieldId ?? field.id ?? "");
+  const mapped = mapFieldType(field.type, field.readonly, id);
   const block: SchemaFieldBlock = {
     type: "field",
-    id: String(field.fieldId ?? field.id ?? ""),
+    id,
     fieldType: mapped.fieldType,
     label: field.label ? String(field.label) : undefined,
   };
 
   applyFieldMeta(block, field, mapped);
 
-  const dataSource = mapDataSource(field.dataSource);
+  const dataSource = normalizeApiDataSource(field);
   if (dataSource) block.dataSource = dataSource;
 
   if (field.formula) {
@@ -115,17 +229,18 @@ const normalizeApiField = (field: ApiField): SchemaFieldBlock => {
 };
 
 const normalizeApiTableColumn = (column: ApiTableColumn): SchemaTableColumn => {
-  const mapped = mapFieldType(column.type, column.readonly);
+  const id = String(column.fieldId ?? column.id ?? "");
+  const mapped = mapFieldType(column.type, column.readonly, id);
   const col: SchemaTableColumn = {
     type: "column",
-    id: String(column.fieldId ?? column.id ?? ""),
+    id,
     fieldType: mapped.fieldType,
     label: column.label ? String(column.label) : undefined,
   };
 
   applyFieldMeta(col, column, mapped);
 
-  const dataSource = mapDataSource(column.dataSource);
+  const dataSource = normalizeApiDataSource(column);
   if (dataSource) col.dataSource = dataSource;
 
   if (column.formula) {
@@ -137,6 +252,12 @@ const normalizeApiTableColumn = (column: ApiTableColumn): SchemaTableColumn => {
 };
 
 const buildPresetRowsFromApiTable = (table: ApiTable): Record<string, unknown>[] => {
+  const predefinedPresetRows = buildPresetRowsFromPredefinedRows(
+    table.predefinedRows,
+    table.columns ?? [],
+  );
+  if (predefinedPresetRows.length) return predefinedPresetRows;
+
   const specialByRowId = new Map(
     (table.specialRows ?? []).map((row) => [String(row.rowId ?? ""), row]),
   );
@@ -236,6 +357,7 @@ const normalizeApiTable = (table: ApiTable): SchemaTableBlock => {
     type: "table",
     id: String(table.tableId ?? table.id ?? ""),
     title: table.title ? String(table.title) : undefined,
+    ...(table.addColumnsAllowed ? { allowAddColumn: true } : {}),
     rows: {
       allowAdd,
       allowDelete: allowAdd,
@@ -258,7 +380,7 @@ export const isApiStyleSection = (section: unknown): section is ApiSection => {
     row.sectionId ||
       row.fields?.length ||
       row.tables?.length ||
-      (row.type === "table" && row.columns?.length) ||
+      isFlatTableSection(row) ||
       (row.type === "stageSpecific" && row.tables?.length),
   );
 };
@@ -273,15 +395,8 @@ export const normalizeApiSection = (section: ApiSection): SchemaSection => {
 
   let children: SchemaSection["children"] = [];
 
-  if (section.type === "table" && section.columns?.length) {
-    children = [
-      normalizeApiTable({
-        tableId: section.sectionId ?? section.id,
-        columns: section.columns,
-        addRowAllowed: section.addRowAllowed,
-        dynamicRows: section.addRowAllowed !== false,
-      }),
-    ];
+  if (isFlatTableSection(section)) {
+    children = [normalizeApiTable(toApiTableFromSection(section))];
   } else if (section.type === "stageSpecific" && section.tables?.length) {
     children = section.tables.map((table, index) =>
       normalizeApiTable({

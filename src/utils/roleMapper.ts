@@ -55,7 +55,8 @@ const SUBDEPT_NAME_SLUG_MAP = {
     trimming: "trimming",
   },
   quality: {
-    "raw-material-revalidation": "raw-material-revalidation",
+    "quality-control": "qc-division",
+    "raw-material-revalidation": "qc-division",
     "qc-division": "qc-division",
     ndt: "ndt",
     "static-test-facility": "static-test-facility",

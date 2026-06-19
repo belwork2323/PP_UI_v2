@@ -1,6 +1,7 @@
-import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress } from "@mui/material";
 import CasePrepSelect from "../manufacturing/CasePreparation/CasePrepSelect";
 import CasePrepDateField from "../manufacturing/CasePreparation/CasePrepDateField";
+import CasePrepTextField from "../manufacturing/CasePreparation/CasePrepTextField";
 import {
   DISPATCH_FLOW_LABELS,
   DISPATCH_STAGE_OPTIONS,
@@ -82,19 +83,14 @@ const DispatchFlowBar = ({
             theme={theme}
           />
 
-          <Box sx={flowBar.selectField?.(240)}>
-            <Typography component="label" sx={flowBar.selectLabel}>
-              {L.dispatchLocation}
-            </Typography>
-            <TextField
-              fullWidth
-              size="small"
-              value={formData.dispatchLocation}
-              placeholder={L.dispatchLocationPlaceholder}
-              onChange={(event) => onSetupChange("dispatchLocation", event.target.value)}
-              sx={flowBar.textField}
-            />
-          </Box>
+          <CasePrepTextField
+            label={L.dispatchLocation}
+            value={formData.dispatchLocation}
+            placeholder={L.dispatchLocationPlaceholder}
+            width={240}
+            theme={theme}
+            onChange={(value) => onSetupChange("dispatchLocation", value)}
+          />
         </Box>
 
         <Box
@@ -115,19 +111,13 @@ const DispatchFlowBar = ({
           />
 
           {formData.ndtClearance === "YES" ? (
-            <Box sx={flowBar.selectField?.(220)}>
-              <Typography component="label" sx={flowBar.selectLabel}>
-                {L.ndtMomNo}
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={formData.ndtMomNo}
-                placeholder={L.ndtMomNoPlaceholder}
-                onChange={(event) => onSetupChange("ndtMomNo", event.target.value)}
-                sx={flowBar.textField}
-              />
-            </Box>
+            <CasePrepTextField
+              label={L.ndtMomNo}
+              value={formData.ndtMomNo}
+              placeholder={L.ndtMomNoPlaceholder}
+              theme={theme}
+              onChange={(value) => onSetupChange("ndtMomNo", value)}
+            />
           ) : null}
 
           <CasePrepSelect
@@ -141,35 +131,25 @@ const DispatchFlowBar = ({
           />
 
           {formData.finalAcceptanceClearance === "YES" ? (
-            <Box sx={flowBar.selectField?.(220)}>
-              <Typography component="label" sx={flowBar.selectLabel}>
-                {L.finalAcceptanceMomNo}
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={formData.finalAcceptanceMomNo}
-                placeholder={L.finalAcceptanceMomNoPlaceholder}
-                onChange={(event) => onSetupChange("finalAcceptanceMomNo", event.target.value)}
-                sx={flowBar.textField}
-              />
-            </Box>
+            <CasePrepTextField
+              label={L.finalAcceptanceMomNo}
+              value={formData.finalAcceptanceMomNo}
+              placeholder={L.finalAcceptanceMomNoPlaceholder}
+              theme={theme}
+              onChange={(value) => onSetupChange("finalAcceptanceMomNo", value)}
+            />
           ) : null}
+        </Box>
 
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
           <Button
             variant="contained"
+            size="small"
             disabled={!canLoad || schemaLoading || formLoaded}
             onClick={onLoadForm}
-            sx={flowBar.loadButton}
+            startIcon={schemaLoading ? <CircularProgress size={14} color="inherit" /> : undefined}
           >
-            {schemaLoading ? (
-              <>
-                <CircularProgress size={16} sx={{ color: "#fff", mr: 1 }} />
-                {L.loadingSchema}
-              </>
-            ) : (
-              L.loadForm
-            )}
+            {schemaLoading ? L.loadingSchema : L.loadForm}
           </Button>
         </Box>
       </Box>

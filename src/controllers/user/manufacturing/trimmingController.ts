@@ -18,13 +18,14 @@ export type TrimmingCreatePayload = {
 
 export type TrimmingUpdatePayload = {
   formId: string;
+  batchId: string;
   subDepartmentId: number;
-  formSubmissionType: "DRAFT" | "UPDATE";
+  formSubmissionType: "DRAFT" | "SUBMIT";
 } & TrimmingFormBody;
 
 export type TrimmingDetailsPayload = {
   formId: string;
-  subDepartmentId: number;
+  // subDepartmentId: number;
 };
 
 export const trimmingController = {

@@ -8,7 +8,7 @@ import { useThemeStore } from "../../../../../app/store/themeStore";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
 import useTrimmingHook from "../../../../../hooks/user/manufacturing/useTrimmingHook";
 import { STRINGS } from "../../../../../app/config/strings";
-
+import TrimmingDetailsView from "./TrimmingDetailsView";
 const TrimmingPage = () => {
   const mode = useThemeStore((state) => state.mode);
   const theme = useMemo(() => getManufacturingTheme(mode), [mode]);
@@ -45,6 +45,10 @@ const TrimmingPage = () => {
     availableMotorOptions,
     approvedMotorsLoading,
     maxMotorCount,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleBackFromDetails,
     handleMotorStageChange,
     handleMotorCountChange,
     handleDraftMotorIdChange,
@@ -67,6 +71,16 @@ const TrimmingPage = () => {
       <Box sx={theme.workflow.animatedContainer}>
         <TrimmingList hookState={hookState} />
       </Box>
+    );
+  }
+  if (view === "details" && detailsRow) {
+    return (
+      <TrimmingDetailsView
+        row={detailsRow}
+        data={detailsData}
+        loading={detailsLoading}
+        onBack={handleBackFromDetails}
+      />
     );
   }
 

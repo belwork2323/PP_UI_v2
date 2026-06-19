@@ -235,7 +235,7 @@ export const useStaticTestFacilityHook = () => {
           detailsResponse.data.workflowInsights?.rejectionReason ?? rejectionReason;
       }
 
-      const nextMotorType = resolvedData.subType ?? initialMotorType;
+      const nextMotorType: StfSubType | null = resolvedData.subType ?? (initialMotorType || null);
       const nextMotorIdNo = resolvedData.motorIdNo || initialMotorIdNo;
 
       setActiveBatch({
@@ -247,7 +247,6 @@ export const useStaticTestFacilityHook = () => {
       });
       setSelectedMotorType(nextMotorType ?? "");
       setMotorIdNo(nextMotorIdNo);
-      setFormData(resolvedData);
       setIsEditMode(editMode);
       setView("form");
 
@@ -339,6 +338,7 @@ export const useStaticTestFacilityHook = () => {
     }
 
     const mapped = mapSTFPayload(formData);
+    const subType = formData.subType ?? "";
     const isCreateFlow =
       activeBatch.stfStatus === QUALITY_CONTROL_STATUS.INITIATED && !activeBatch.formId;
 
@@ -356,6 +356,7 @@ export const useStaticTestFacilityHook = () => {
           batchId: activeBatch.batchId,
           subDepartmentId,
           formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
+          subType,
           ...mapped,
         });
       } else {
@@ -366,8 +367,10 @@ export const useStaticTestFacilityHook = () => {
 
         response = await stfController.updateForm({
           formId: activeBatch.formId,
+          batchId: activeBatch.batchId ?? "",
           subDepartmentId,
-          formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
+          formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
+          subType,
           ...mapped,
         });
       }

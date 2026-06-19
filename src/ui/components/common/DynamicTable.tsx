@@ -1,5 +1,8 @@
 import {
+  Box,
   Button,
+  IconButton,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -9,14 +12,41 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { SchemaTableBlock, SchemaTableColumn, SchemaTableColumnSlot } from "../../../schema-engine/types";
+import { useCallback, useEffect, useState } from "react";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import type { SxProps, Theme } from "@mui/material";
+import type { SchemaTableBlock, SchemaTableColumn, SchemaTableColumnSlot, SchemaDataSource } from "../../../schema-engine/types";
 import { applyFormulaColumns } from "../../../schema-engine/rules/formulaEval";
 import { flattenTableColumns, isColumnGroup } from "../../../schema-engine/utils/schemaUtils";
-import type { SchemaApiContext } from "../../../schema-engine/rules/apiDependency";
+import {
+  buildRowApiContext,
+  getDependentColumnIds,
+  resolveDataSourceApi,
+  type SchemaApiContext,
+} from "../../../schema-engine/rules/apiDependency";
+import {
+  commitPickerRow,
+  computeExpandedGroupCellSpans,
+  countExpandedRowsInGroup,
+  findLastPickerRow,
+  getMergeExpandedColumns,
+  getTableCommitGroup,
+  hasTableCommitGroup,
+  isCommitAddReady,
+  isCommitGroupDividerBefore,
+  isExpandedColumnReadonly,
+  isPickerColumnVisible,
+  isPickerRowAfterGroups,
+  removeTableGroup,
+  renumberTableRows,
+  resolveDerivedColumnValue,
+} from "../../../schema-engine/rules/tableCommitGroup";
 import type { SchemaThemeTokens } from "../../../schema-engine/utils/schemaUtils";
 import {
   isPresetLockedCell,
   isPresetLockedRow,
+  isExpandedRow,
+  isPickerRow,
 } from "../../../schema-engine/utils/tableRowUtils";
 import SchemaApiDropdown from "./SchemaApiDropdown";
 import { DateField, DateTimeField, TimeField } from "./DateField";
@@ -30,7 +60,36 @@ type DynamicTableProps = {
   readOnly?: boolean;
   theme?: SchemaThemeTokens;
   apiContext?: SchemaApiContext;
+  allowAddColumn?: boolean;
+  onAddColumn?: () => void;
+  allowDeleteColumn?: boolean;
+  deletableColumnIds?: string[];
+  onDeleteColumn?: (columnId: string) => void;
 };
+
+const spacingMap: Record<string, number> = { xs: 0.5, sm: 1, md: 1.5, lg: 2, xl: 3 };
+
+const resolveColumnToolbarSx = (config: SchemaTableBlock): SxProps<Theme> => {
+  const position = config.columnActions?.position ?? "top-right";
+  const ui = config.columnActions?.ui;
+  const sx: Record<string, unknown> = {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: position.includes("right") ? "flex-end" : "flex-start",
+  };
+
+  if (ui?.gap) sx.gap = spacingMap[ui.gap] ?? 1;
+  if (ui?.padding) sx.p = spacingMap[ui.padding] ?? 1;
+  if (ui?.justifyContent) sx.justifyContent = ui.justifyContent;
+  if (ui?.alignItems) sx.alignItems = ui.alignItems;
+  if (ui?.sx) Object.assign(sx, ui.sx);
+
+  return sx as SxProps<Theme>;
+};
+
+const isToolbarTop = (config: SchemaTableBlock) =>
+  (config.columnActions?.position ?? "top-right").startsWith("top");
 
 const isFormulaCol = (col: SchemaTableColumn) =>
   col.fieldType === "formula" || Boolean(col.formula?.expression);
@@ -46,31 +105,119 @@ const cellSx = (col: SchemaTableColumn) => ({
   minWidth: col.fieldType === "serial" ? 48 : col.fieldType === "datetime" ? 180 : 100,
 });
 
-const renderFlatHeaderCells = (columns: SchemaTableColumnSlot[]) =>
+const commitGroupDividerSx = (theme?: SchemaThemeTokens) => ({
+  borderTop: `2px solid ${theme?.border ?? "#B0BEC5"}`,
+  "& > td": {
+    pt: 1.25,
+    borderTop: "inherit",
+  },
+});
+
+const commitGroupBlockSx = {
+  background: "rgba(21,101,192,0.035)",
+  "& > td": {
+    borderBottom: "1px solid rgba(21,101,192,0.08)",
+  },
+};
+
+const renderFlatHeaderCells = (
+  columns: SchemaTableColumnSlot[],
+  options?: {
+    deletableColumnIds?: Set<string>;
+    allowDeleteColumn?: boolean;
+    onDeleteColumn?: (columnId: string) => void;
+    readOnly?: boolean;
+  },
+) =>
   columns.flatMap((slot) => {
     if (isColumnGroup(slot)) {
       return slot.columns.map((col) => (
         <TableCell key={col.id} sx={{ fontWeight: 700, fontSize: "0.72rem", ...cellSx(col) }}>
-          {col.label}
-          {col.unit ? ` (${col.unit})` : ""}
+          {renderColumnHeaderLabel(col, options)}
         </TableCell>
       ));
     }
     return (
       <TableCell key={slot.id} sx={{ fontWeight: 700, fontSize: "0.72rem", ...cellSx(slot) }}>
-        {slot.label}
-        {slot.unit ? ` (${slot.unit})` : ""}
+        {renderColumnHeaderLabel(slot, options)}
       </TableCell>
     );
   });
 
-const renderGroupedSubHeaderCells = (columns: SchemaTableColumnSlot[]) =>
+const renderColumnHeaderLabel = (
+  col: SchemaTableColumn,
+  options?: {
+    deletableColumnIds?: Set<string>;
+    allowDeleteColumn?: boolean;
+    onDeleteColumn?: (columnId: string) => void;
+    readOnly?: boolean;
+  },
+) => {
+  const canDelete =
+    !options?.readOnly &&
+    options?.allowDeleteColumn &&
+    options.deletableColumnIds?.has(col.id) &&
+    options.onDeleteColumn;
+
+  if (!canDelete) {
+    return (
+      <>
+        {col.label}
+        {col.unit ? ` (${col.unit})` : ""}
+      </>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 0.5,
+        width: "100%",
+        minHeight: 28,
+      }}
+    >
+      <Box
+        component="span"
+        sx={{ flex: 1, lineHeight: 1.3, fontWeight: 700, fontSize: "inherit", pr: 0.5 }}
+      >
+        {col.label}
+        {col.unit ? ` (${col.unit})` : ""}
+      </Box>
+      <IconButton
+        size="small"
+        color="error"
+        aria-label={`Delete ${col.label} column`}
+        onClick={() => options.onDeleteColumn?.(col.id)}
+        sx={{
+          flexShrink: 0,
+          p: 0.25,
+          ml: "auto",
+          alignSelf: "center",
+        }}
+      >
+        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Box>
+  );
+};
+
+const renderGroupedSubHeaderCells = (
+  columns: SchemaTableColumnSlot[],
+  options?: {
+    deletableColumnIds?: Set<string>;
+    allowDeleteColumn?: boolean;
+    onDeleteColumn?: (columnId: string) => void;
+    readOnly?: boolean;
+  },
+) =>
   columns.flatMap((slot) => {
     if (!isColumnGroup(slot)) return [];
     return slot.columns.map((col) => (
       <TableCell key={col.id} sx={{ fontWeight: 700, fontSize: "0.72rem", ...cellSx(col) }}>
-        {col.label}
-        {col.unit ? ` (${col.unit})` : ""}
+        {renderColumnHeaderLabel(col, options)}
       </TableCell>
     ));
   });
@@ -112,7 +259,22 @@ const renderCellEditor = (
   onChange: (next: string) => void,
   readOnly: boolean,
   apiContext?: SchemaApiContext,
+  onOptionsCountChange?: (count: number) => void,
 ) => {
+  if (readOnly && col.fieldType === "dropdown" && col.dataSource) {
+    return (
+      <SchemaApiDropdown
+        value={value}
+        onChange={onChange}
+        dataSource={col.dataSource}
+        apiContext={apiContext}
+        disabled
+        placeholder={col.ui?.placeholder}
+        onOptionsCountChange={onOptionsCountChange}
+      />
+    );
+  }
+
   if (isReadonlyCol(col) || readOnly) {
     return <FormulaCell value={value} unit={col.unit} />;
   }
@@ -126,6 +288,8 @@ const renderCellEditor = (
           dataSource={col.dataSource}
           apiContext={apiContext}
           disabled={readOnly}
+          placeholder={col.ui?.placeholder}
+          onOptionsCountChange={onOptionsCountChange}
         />
       );
     case "date":
@@ -194,23 +358,116 @@ const DynamicTable = ({
   readOnly = false,
   theme,
   apiContext,
+  allowAddColumn = false,
+  onAddColumn,
+  allowDeleteColumn = false,
+  deletableColumnIds = [],
+  onDeleteColumn,
 }: DynamicTableProps) => {
   const flatColumns = flattenTableColumns(config.columns);
   const hasColumnGroups = config.columns.some(isColumnGroup);
   const autoKey = config.rows?.autoIncrementKey ?? "srNo";
+  const commitGroup = getTableCommitGroup(config);
+  const isCommitGroupMode = hasTableCommitGroup(config);
+  const mergeExpandedColumns = commitGroup ? getMergeExpandedColumns(commitGroup) : [];
+  const expandedGroupCellSpans =
+    isCommitGroupMode && mergeExpandedColumns.length
+      ? computeExpandedGroupCellSpans(rows, mergeExpandedColumns)
+      : new Map();
+  const [pickerOptionCounts, setPickerOptionCounts] = useState<Record<string, number>>({});
+  const pickerRow = findLastPickerRow(rows);
+  const primaryPickerColumn = commitGroup?.pickerColumns[0];
+  const pickerMaterialValue = pickerRow ? String(pickerRow[primaryPickerColumn ?? ""] ?? "") : "";
+
+  useEffect(() => {
+    const dependentPickerColumns = commitGroup?.pickerColumns.slice(1) ?? [];
+    if (!dependentPickerColumns.length) return;
+    setPickerOptionCounts((prev) => {
+      const next = { ...prev };
+      dependentPickerColumns.forEach((columnId) => {
+        delete next[columnId];
+      });
+      return next;
+    });
+  }, [pickerMaterialValue, commitGroup]);
+
+  const handlePickerOptionCountChange = useCallback((columnId: string, count: number) => {
+    setPickerOptionCounts((prev) => {
+      if (prev[columnId] === count) return prev;
+      return { ...prev, [columnId]: count };
+    });
+  }, []);
   const allowAdd = config.rows?.allowAdd !== false && !readOnly;
   const allowDelete = config.rows?.allowDelete !== false && !readOnly;
+  const deletableIds = new Set(deletableColumnIds);
+  const headerOptions = {
+    deletableColumnIds: deletableIds,
+    allowDeleteColumn,
+    onDeleteColumn,
+    readOnly,
+  };
+  const toolbarTop = isToolbarTop(config);
+  const addColumnLabel = config.columnActions?.addLabel ?? "Add Column";
+  const showColumnToolbar = allowAddColumn && onAddColumn && !readOnly;
+
+  const renderColumnToolbar = () =>
+    showColumnToolbar ? (
+      <Stack direction="row" sx={resolveColumnToolbarSx(config)}>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={onAddColumn}
+          sx={{ textTransform: "none", fontWeight: 700 }}
+        >
+          {addColumnLabel}
+        </Button>
+      </Stack>
+    ) : null;
 
   const updateCell = (rowIndex: number, colId: string, value: string) => {
+    const changedColumn = flatColumns.find((col) => col.id === colId);
+    const dependentColumnIds = getDependentColumnIds(flatColumns, colId);
     const nextRows = rows.map((row, idx) => {
       if (idx !== rowIndex) return row;
-      const updated = applyFormulaColumns({ ...row, [colId]: value }, flatColumns);
-      return updated;
+      const updated: Record<string, unknown> = { ...row, [colId]: value };
+      dependentColumnIds.forEach((dependentId) => {
+        updated[dependentId] = "";
+      });
+      if (changedColumn?.derive?.sourceField) {
+        const targetColumn = changedColumn.derive.targetColumn;
+        if (targetColumn) updated[targetColumn] = "";
+      }
+      return applyFormulaColumns(updated, flatColumns);
     });
     onChange(nextRows);
+
+    if (changedColumn?.derive && value) {
+      const rowApiContext = buildRowApiContext(apiContext, nextRows[rowIndex] ?? {});
+      void resolveDerivedColumnValue(changedColumn, value, rowApiContext).then((derivedValue) => {
+        if (!derivedValue || !changedColumn.derive?.targetColumn) return;
+        onChange(
+          nextRows.map((row, idx) =>
+            idx === rowIndex
+              ? applyFormulaColumns({ ...row, [changedColumn.derive!.targetColumn!]: derivedValue }, flatColumns)
+              : row,
+          ),
+        );
+      });
+    }
+  };
+
+  const handleRemoveGroup = (groupId: string) => {
+    onChange(removeTableGroup(rows, groupId, flatColumns, autoKey));
   };
 
   const addRow = () => {
+    if (isCommitGroupMode && commitGroup) {
+      void commitPickerRow(config, rows, apiContext, flatColumns, autoKey, pickerOptionCounts).then((nextRows) => {
+        if (nextRows) onChange(nextRows);
+      });
+      return;
+    }
+
     const row: Record<string, unknown> = { [autoKey]: rows.length + 1 };
     flatColumns.forEach((col) => {
       if (col.fieldType !== "serial") row[col.id] = "";
@@ -219,12 +476,44 @@ const DynamicTable = ({
   };
 
   const removeRow = (rowIndex: number) => {
-    if (rows.length <= (config.rows?.min ?? 1)) return;
-    onChange(rows.filter((_, idx) => idx !== rowIndex).map((row, idx) => ({ ...row, [autoKey]: idx + 1 })));
+    const row = rows[rowIndex];
+    const groupId = row._groupId ? String(row._groupId) : "";
+
+    if (groupId && row._rowType === "header") {
+      handleRemoveGroup(groupId);
+      return;
+    }
+
+    if (isExpandedRow(row) && groupId && countExpandedRowsInGroup(rows, groupId) <= 1) {
+      handleRemoveGroup(groupId);
+      return;
+    }
+
+    if (isPickerRow(row) && rows.filter(isPickerRow).length <= 1) {
+      return;
+    }
+
+    const minRows = isCommitGroupMode ? 1 : (config.rows?.min ?? 0);
+    if (rows.length <= minRows) return;
+
+    onChange(
+      renumberTableRows(
+        rows.filter((_, idx) => idx !== rowIndex),
+        autoKey,
+      ),
+    );
   };
+
+  const addRowDisabled =
+    isCommitGroupMode && commitGroup
+      ? !isCommitAddReady(commitGroup, pickerRow, pickerOptionCounts)
+      : false;
+  const addRowLabel =
+    config.rows?.addLabel ?? commitGroup?.addLabel ?? "Add Row";
 
   return (
     <TableContainer sx={{ overflowX: "auto", border: `1px solid ${theme?.border ?? "#D5D8DC"}`, borderRadius: 2 }}>
+      {toolbarTop && showColumnToolbar ? renderColumnToolbar() : null}
       {config.label ? (
         <Typography sx={{ fontSize: "0.84rem", fontWeight: 700, color: theme?.primary, p: 1 }}>
           {config.label}
@@ -236,12 +525,12 @@ const DynamicTable = ({
             <>
               {renderGroupHeaderRow(config.columns, allowDelete)}
               <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
-                {renderGroupedSubHeaderCells(config.columns)}
+                {renderGroupedSubHeaderCells(config.columns, headerOptions)}
               </TableRow>
             </>
           ) : (
             <TableRow sx={{ background: "rgba(21,101,192,0.06)" }}>
-              {renderFlatHeaderCells(config.columns)}
+              {renderFlatHeaderCells(config.columns, headerOptions)}
               {allowDelete ? <TableCell sx={{ width: 48, fontWeight: 700, fontSize: "0.72rem" }}>Actions</TableCell> : null}
             </TableRow>
           )}
@@ -249,42 +538,149 @@ const DynamicTable = ({
         <TableBody>
           {rows.map((row, rowIndex) => {
             if (row._rowType === "header") {
+              const groupId = row._groupId ? String(row._groupId) : "";
               return (
-                <TableRow key={rowIndex} sx={{ background: "rgba(21,101,192,0.04)" }}>
+                <TableRow
+                  key={rowIndex}
+                  sx={{
+                    ...commitGroupBlockSx,
+                    ...(isCommitGroupDividerBefore(rows, rowIndex) ? commitGroupDividerSx(theme) : {}),
+                    background: "rgba(21,101,192,0.06)",
+                  }}
+                >
                   <TableCell
                     colSpan={flatColumns.length + (allowDelete ? 1 : 0)}
                     sx={{ fontWeight: 700, fontSize: "0.78rem", color: theme?.primary }}
                   >
-                    {String(row._headerLabel ?? "")}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                      }}
+                    >
+                      <span>{String(row._headerLabel ?? "")}</span>
+                      {allowDelete && groupId ? (
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => handleRemoveGroup(groupId)}
+                          sx={{ textTransform: "none", fontWeight: 700, flexShrink: 0 }}
+                        >
+                          {commitGroup?.removeGroupLabel ?? "Remove Group"}
+                        </Button>
+                      ) : null}
+                    </Box>
                   </TableCell>
                 </TableRow>
               );
             }
 
             const rowPresetLocked = isPresetLockedRow(row, rowIndex, config.rows?.presetRows);
+            const isPicker = isCommitGroupMode && isPickerRow(row);
+            const isExpanded = isCommitGroupMode && isExpandedRow(row);
+            const rowGroupId = row._groupId ? String(row._groupId) : "";
+            const showGroupDivider =
+              isCommitGroupMode &&
+              (isCommitGroupDividerBefore(rows, rowIndex) || isPickerRowAfterGroups(rows, rowIndex));
 
             return (
-              <TableRow key={rowIndex}>
+              <TableRow
+                key={rowIndex}
+                sx={{
+                  ...(isExpanded ? commitGroupBlockSx : {}),
+                  ...(showGroupDivider ? commitGroupDividerSx(theme) : {}),
+                  ...(isPicker ? { background: "rgba(21,101,192,0.02)" } : {}),
+                }}
+              >
                 {flatColumns.map((col) => {
+                  const mergeSpan = expandedGroupCellSpans.get(`${rowIndex}:${col.id}`);
+                  if (mergeSpan?.isContinuation) return null;
+
                   if (col.fieldType === "serial") {
                     return (
-                      <TableCell key={col.id}>{String(row[autoKey] ?? rowIndex + 1)}</TableCell>
+                      <TableCell key={col.id}>
+                        {isPicker ? "" : String(row[autoKey] ?? rowIndex + 1)}
+                      </TableCell>
                     );
                   }
+
+                  if (isPicker && commitGroup && !isPickerColumnVisible(commitGroup, col.id)) {
+                    return <TableCell key={col.id} />;
+                  }
+
+                  const nestedOptionsApi =
+                    col.dataSource?.type === "api"
+                      ? resolveDataSourceApi(col.dataSource as SchemaDataSource & Record<string, unknown>)
+                      : null;
+
+                  const nestedParentColumnId = nestedOptionsApi?.parentMatchContextKey?.trim();
+                  const nestedParentSelected = nestedParentColumnId
+                    ? String(row[nestedParentColumnId] ?? "").trim() !== ""
+                    : false;
+
+                  if (
+                    isPicker &&
+                    nestedOptionsApi?.nestedOptionsKey &&
+                    nestedParentSelected &&
+                    pickerOptionCounts[col.id] === 0
+                  ) {
+                    return (
+                      <TableCell key={col.id} sx={{ color: "text.secondary", fontSize: "0.78rem" }}>
+                        N/A
+                      </TableCell>
+                    );
+                  }
+
                   const cellValue = String(row[col.id] ?? "");
                   const cellReadOnly =
                     readOnly ||
                     isReadonlyCol(col) ||
-                    isPresetLockedCell(row, col.id, rowIndex, config.rows?.presetRows, autoKey);
+                    isPresetLockedCell(row, col.id, rowIndex, config.rows?.presetRows, autoKey) ||
+                    (isExpanded && commitGroup
+                      ? isExpandedColumnReadonly(commitGroup, col.id)
+                      : false);
+                  const rowApiContext = buildRowApiContext(apiContext, row);
+                  const trackPickerOptionCount = isPicker && Boolean(nestedOptionsApi?.nestedOptionsKey);
+                  const showGroupRemove =
+                    allowDelete &&
+                    isExpanded &&
+                    rowGroupId &&
+                    mergeSpan &&
+                    mergeExpandedColumns.includes(col.id);
+
                   return (
-                    <TableCell key={col.id} sx={cellSx(col)}>
-                      {renderCellEditor(
-                        col,
-                        cellValue,
-                        (v) => updateCell(rowIndex, col.id, v),
-                        cellReadOnly,
-                        apiContext,
-                      )}
+                    <TableCell
+                      key={col.id}
+                      rowSpan={mergeSpan?.rowSpan && mergeSpan.rowSpan > 1 ? mergeSpan.rowSpan : undefined}
+                      sx={cellSx(col)}
+                    >
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                        {renderCellEditor(
+                          col,
+                          cellValue,
+                          (v) => updateCell(rowIndex, col.id, v),
+                          cellReadOnly,
+                          rowApiContext,
+                          trackPickerOptionCount
+                            ? (count) => {
+                                if (!nestedParentSelected) return;
+                                handlePickerOptionCountChange(col.id, count);
+                              }
+                            : undefined,
+                        )}
+                        {showGroupRemove ? (
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => handleRemoveGroup(rowGroupId)}
+                            sx={{ textTransform: "none", fontWeight: 700, alignSelf: "flex-start" }}
+                          >
+                            {commitGroup?.removeGroupLabel ?? "Remove Group"}
+                          </Button>
+                        ) : null}
+                      </Box>
                     </TableCell>
                   );
                 })}
@@ -294,7 +690,12 @@ const DynamicTable = ({
                       size="small"
                       color="error"
                       onClick={() => removeRow(rowIndex)}
-                      disabled={rows.length <= (config.rows?.min ?? 1) || rowPresetLocked}
+                      disabled={
+                        isPicker ||
+                        rowPresetLocked ||
+                        (rows.length <= (isCommitGroupMode ? 1 : (config.rows?.min ?? 0)) &&
+                          !isCommitGroupMode)
+                      }
                     >
                       Remove
                     </Button>
@@ -306,9 +707,17 @@ const DynamicTable = ({
         </TableBody>
       </Table>
       {allowAdd ? (
-        <Button size="small" onClick={addRow} sx={{ m: 1, textTransform: "none", fontWeight: 700 }}>
-          Add Row
+        <Button
+          size="small"
+          onClick={addRow}
+          disabled={addRowDisabled}
+          sx={{ m: 1, textTransform: "none", fontWeight: 700 }}
+        >
+          {addRowLabel}
         </Button>
+      ) : null}
+      {!toolbarTop && showColumnToolbar ? (
+        <Box sx={{ px: 1, pb: 1 }}>{renderColumnToolbar()}</Box>
       ) : null}
     </TableContainer>
   );

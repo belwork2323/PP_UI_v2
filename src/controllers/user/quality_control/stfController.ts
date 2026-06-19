@@ -1,6 +1,7 @@
 import { ApiResponseModel } from "../../../data/models/common/ApiResponseModel";
 import {
   STFDetailsModel,
+  STFMotorPayload,
   STFSubmitResponseModel,
 } from "../../../data/models/user/StaticTestFacilityApiModel";
 import {
@@ -13,22 +14,17 @@ export type STFCreatePayload = {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-  schemaVersion?: string;
-  schemaType?: string;
-  subType?: string;
-  motorIdNo?: string;
-  sections: unknown[];
+  subType: string;
+  motors: STFMotorPayload[];
 };
 
 export type STFUpdatePayload = {
   formId: string;
+  batchId: string;
   subDepartmentId: number;
-  formSubmissionType: "DRAFT" | "UPDATE";
-  schemaVersion?: string;
-  schemaType?: string;
-  subType?: string;
-  motorIdNo?: string;
-  sections: unknown[];
+  formSubmissionType: "DRAFT" | "SUBMIT";
+  subType: string;
+  motors: STFMotorPayload[];
 };
 
 export type STFDetailsPayload = {

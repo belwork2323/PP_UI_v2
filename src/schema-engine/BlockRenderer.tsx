@@ -7,6 +7,12 @@ import { setBlockValue, buildRepeatInstanceChildValues, buildTableRows } from ".
 import { isBlockVisible } from "./rules/visibility";
 import { resolveSchemaCountToken, type SchemaSetupContext } from "./utils/setupContext";
 import { resolveBlockLayoutSx, resolveFullWidthBlockLayoutSx, resolveGridGap } from "./utils/blockLayout";
+import {
+  createNextPrefixedTableColumn,
+  resolveTableExtraColumns,
+  resolveTableRows,
+  wrapTableValue,
+} from "./utils/tableRowUtils";
 import FormInput from "../ui/components/common/FormInput";
 import SchemaApiDropdown from "../ui/components/common/SchemaApiDropdown";
 import DynamicTable from "../ui/components/common/DynamicTable";
@@ -228,20 +234,51 @@ export const BlockRenderer = ({ block, ctx }: { block: SchemaBlock; ctx: BlockRe
       );
     }
     case "table": {
-      const storedRows = ctx.values[block.id];
-      const rows = Array.isArray(storedRows) && storedRows.length > 0
-        ? (storedRows as Record<string, unknown>[])
-        : buildTableRows(block);
+      const storedValue = ctx.values[block.id];
+      const extraColumns = resolveTableExtraColumns(storedValue);
+      const rows = resolveTableRows(storedValue, block, buildTableRows);
+      const mergedColumns = [...block.columns, ...extraColumns];
+
+      const handleTableChange = (nextRows: Record<string, unknown>[]) => {
+        const nextValue =
+          block.allowAddColumn || block.allowDeleteColumn || extraColumns.length > 0
+            ? wrapTableValue(nextRows, extraColumns)
+            : nextRows;
+        ctx.onChange(setBlockValue(ctx.values, block.id, nextValue));
+      };
+
+      const handleAddColumn = () => {
+        if (!block.allowAddColumn) return;
+        const column = createNextPrefixedTableColumn(block, extraColumns);
+        const nextExtraColumns = [...extraColumns, column];
+        const nextRows = rows.map((row) => ({ ...row, [column.id]: row[column.id] ?? "" }));
+        ctx.onChange(setBlockValue(ctx.values, block.id, wrapTableValue(nextRows, nextExtraColumns)));
+      };
+
+      const handleDeleteColumn = (columnId: string) => {
+        if (!block.allowDeleteColumn) return;
+        const nextExtraColumns = extraColumns.filter((col) => col.id !== columnId);
+        const nextRows = rows.map((row) => {
+          const { [columnId]: _removed, ...rest } = row;
+          return rest;
+        });
+        ctx.onChange(setBlockValue(ctx.values, block.id, wrapTableValue(nextRows, nextExtraColumns)));
+      };
 
       return (
         <Box sx={resolveFullWidthBlockLayoutSx(block.ui)} data-custom-flex>
           <DynamicTable
-            config={block}
+            config={{ ...block, columns: mergedColumns }}
             rows={rows}
-            onChange={(nextRows) => ctx.onChange(setBlockValue(ctx.values, block.id, nextRows))}
+            onChange={handleTableChange}
             readOnly={ctx.readOnly}
             theme={ctx.theme}
             apiContext={ctx.apiContext}
+            allowAddColumn={block.allowAddColumn}
+            onAddColumn={block.allowAddColumn ? handleAddColumn : undefined}
+            allowDeleteColumn={block.allowDeleteColumn}
+            deletableColumnIds={extraColumns.map((col) => col.id)}
+            onDeleteColumn={block.allowDeleteColumn ? handleDeleteColumn : undefined}
           />
         </Box>
       );

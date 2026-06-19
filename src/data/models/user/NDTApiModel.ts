@@ -5,6 +5,7 @@ import {
   type NDTFileValue,
   type NDTFormState,
   type NDTMotorSession,
+  type NDTRadiographyPlanRow,
 } from "./NDTFormModel";
 
 export type NDTSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
@@ -19,51 +20,124 @@ const normalizeSingleFilePath = (file: NDTFileValue | null | undefined): string 
   return typeof file === "string" ? file : null;
 };
 
+const extractRadiographyDetails = (motor: any): { equipment: string; beamEnergies: string[]; radiographyPlan: string; radiographyPlanRows: NDTRadiographyPlanRow[] } => {
+  const rd = motor?.radiographyDetails;
+  if (!rd) return { equipment: "", beamEnergies: [], radiographyPlan: "", radiographyPlanRows: [] };
+
+  const planDetails = rd.radiographyPlanDetails;
+  const planRows: NDTRadiographyPlanRow[] = planDetails
+    ? [{
+        srNo: 1,
+        sections: String(planDetails.numberOfSections ?? ""),
+        orientations: String(planDetails.numberOfOrientations ?? ""),
+        sfd: String(planDetails.sfd ?? ""),
+        normalExposures: String(planDetails.numberOfNormalExposures ?? ""),
+        tangentialExposures: String(planDetails.numberOfTangentialExposures ?? ""),
+        detectorType: planDetails.detectorType ?? "",
+      }]
+    : [];
+
+  return {
+    equipment: rd.equipmentUtilized ?? "",
+    beamEnergies: Array.isArray(rd.xrayBeamEnergies) ? rd.xrayBeamEnergies : [],
+    radiographyPlan: rd.radiographyPlanId ?? "",
+    radiographyPlanRows: planRows,
+  };
+};
+
 const mapMotorSessionFromApi = (motor: any): NDTMotorSession =>
   normalizeNDTMotorSession({
     motorId: String(motor?.motorId ?? ""),
-    additionalExposureRows: motor?.additionalExposureRows,
-    radiographyObservationRows: motor?.radiographyObservationRows,
-    visualInspectionRows: motor?.visualInspectionRows,
-    visualInspectionMedia: motor?.visualInspectionMediaFilePaths ?? motor?.visualInspectionMedia,
-    signedReport: motor?.signedReportFilePath ?? motor?.signedReport,
-    additionalRemarks: motor?.additionalRemarks,
+    additionalExposureRows: (motor?.additionalExposureDetails ?? []).map((row: any) => ({
+      sectionNumber: String(row.sectionNumber ?? ""),
+      orientation: row.orientation ?? "",
+      exposureCount: String(row.numberOfExposure ?? ""),
+    })),
+    radiographyObservationRows: (motor?.radiographyObservations ?? []).map((row: any) => ({
+      section: String(row.sectionNumber ?? ""),
+      orientation: row.orientation ?? "",
+      observations: row.observation ?? "",
+      files: Array.isArray(row.uploadedImages) ? row.uploadedImages : [],
+    })),
+    visualInspectionRows: (motor?.visualInspectionDetails ?? []).map((row: any) => ({
+      observation: row.observationType ?? "",
+      isPreset: false,
+      section: String(row.sectionNumber ?? ""),
+      orientation: row.orientation ?? "",
+      files: Array.isArray(row.uploadedImages) ? row.uploadedImages : [],
+    })),
+    visualInspectionMedia: Array.isArray(motor?.uploadedVideos) ? motor.uploadedVideos : [],
+    signedReport: motor?.signedNdtReport?.documentId ?? null,
+    additionalRemarks: motor?.additionalRemarks ?? "",
   });
 
-const mapMotorSessionToApi = (motor: NDTMotorSession) => ({
-  motorId: motor.motorId ?? "",
-  additionalExposureRows: (motor.additionalExposureRows ?? []).map((row) => ({
-    sectionNumber: row.sectionNumber ?? "",
-    orientation: row.orientation ?? "",
-    exposureCount: row.exposureCount ?? "",
-  })),
-  radiographyObservationRows: (motor.radiographyObservationRows ?? []).map((row) => ({
-    section: row.section ?? "",
-    orientation: row.orientation ?? "",
-    observations: row.observations ?? "",
-    filePaths: normalizeFilePaths(row.files ?? []),
-  })),
-  visualInspectionRows: (motor.visualInspectionRows ?? []).map((row) => ({
-    observation: row.observation ?? "",
-    isPreset: row.isPreset,
-    section: row.section ?? "",
-    orientation: row.orientation ?? "",
-    filePaths: normalizeFilePaths(row.files ?? []),
-  })),
-  visualInspectionMediaFilePaths: normalizeFilePaths(motor.visualInspectionMedia ?? []),
-  signedReportFilePath: normalizeSingleFilePath(motor.signedReport),
-  additionalRemarks: motor.additionalRemarks ?? "",
-});
+const mapMotorSessionToApi = (
+  motor: NDTMotorSession,
+  formEquipment: string,
+  formBeamEnergies: string[],
+  formRadiographyPlan: string,
+  formRadiographyPlanRows: NDTRadiographyPlanRow[],
+) => {
+  const firstRow = formRadiographyPlanRows[0];
+
+  return {
+    motorId: motor.motorId ?? "",
+    radiographyDetails: {
+      equipmentUtilized: formEquipment,
+      xrayBeamEnergies: formBeamEnergies,
+      radiographyPlanId: formRadiographyPlan,
+      ...(firstRow
+        ? {
+            radiographyPlanDetails: {
+              numberOfSections: Number(firstRow.sections) || 0,
+              numberOfOrientations: Number(firstRow.orientations) || 0,
+              sfd: Number(firstRow.sfd) || 0,
+              numberOfNormalExposures: Number(firstRow.normalExposures) || 0,
+              numberOfTangentialExposures: Number(firstRow.tangentialExposures) || 0,
+              detectorType: firstRow.detectorType ?? "",
+            },
+          }
+        : {}),
+    },
+    additionalExposureDetails: (motor.additionalExposureRows ?? []).map((row) => ({
+      sectionNumber: Number(row.sectionNumber) || 0,
+      orientation: row.orientation ?? "",
+      numberOfExposure: Number(row.exposureCount) || 0,
+    })),
+    radiographyObservations: (motor.radiographyObservationRows ?? []).map((row) => ({
+      sectionNumber: Number(row.section) || 0,
+      orientation: row.orientation ?? "",
+      observation: row.observations ?? "",
+      uploadedImages: normalizeFilePaths(row.files ?? []),
+    })),
+    visualInspectionDetails: (motor.visualInspectionRows ?? [])
+      .filter((row) => row.section || row.orientation || row.files?.length)
+      .map((row) => ({
+        observationType: row.observation ?? "",
+        sectionNumber: Number(row.section) || 0,
+        orientation: row.orientation ?? "",
+        observation: "",
+        uploadedImages: normalizeFilePaths(row.files ?? []),
+      })),
+    uploadedVideos: normalizeFilePaths(motor.visualInspectionMedia ?? []),
+    additionalRemarks: motor.additionalRemarks ?? "",
+    signedNdtReport: {
+      documentId: normalizeSingleFilePath(motor.signedReport) ?? "",
+    },
+  };
+};
 
 const hydrateFormState = (payload: any): NDTFormState => {
   if (Array.isArray(payload?.motors) && payload.motors.length > 0) {
+    const rd = extractRadiographyDetails(payload.motors[0]);
+
     return normalizeNDTFormState({
       batchId: payload?.batchId ?? "",
       formLoaded: true,
-      equipment: payload?.equipment ?? "",
-      beamEnergies: Array.isArray(payload?.beamEnergies) ? payload.beamEnergies : [],
-      radiographyPlan: payload?.radiographyPlan ?? "",
-      radiographyPlanRows: Array.isArray(payload?.radiographyPlanRows) ? payload.radiographyPlanRows : [],
+      equipment: rd.equipment,
+      beamEnergies: rd.beamEnergies,
+      radiographyPlan: rd.radiographyPlan,
+      radiographyPlanRows: rd.radiographyPlanRows,
       motors: payload.motors.map(mapMotorSessionFromApi),
       motorId: payload?.motorId ?? payload.motors[0]?.motorId,
     });
@@ -136,45 +210,17 @@ export class NDTDetailsModel {
 
 export const mapNDTPayload = (form: NDTFormState) => {
   const normalized = normalizeNDTFormState(form);
-  const primaryMotor = normalized.motors[0];
 
   return {
-    batchId: normalized.batchId ?? "",
-    motorId: primaryMotor?.motorId ?? normalized.motorId ?? "",
-    equipment: normalized.equipment ?? "",
-    beamEnergies: normalized.beamEnergies ?? [],
-    radiographyPlan: normalized.radiographyPlan ?? "",
-    radiographyPlanRows: (normalized.radiographyPlanRows ?? []).map((row) => ({
-      srNo: row.srNo,
-      sections: row.sections ?? "",
-      orientations: row.orientations ?? "",
-      sfd: row.sfd ?? "",
-      normalExposures: row.normalExposures ?? "",
-      tangentialExposures: row.tangentialExposures ?? "",
-      detectorType: row.detectorType ?? "",
-    })),
-    motors: normalized.motors.map(mapMotorSessionToApi),
-    additionalExposureRows: (primaryMotor?.additionalExposureRows ?? []).map((row) => ({
-      sectionNumber: row.sectionNumber ?? "",
-      orientation: row.orientation ?? "",
-      exposureCount: row.exposureCount ?? "",
-    })),
-    radiographyObservationRows: (primaryMotor?.radiographyObservationRows ?? []).map((row) => ({
-      section: row.section ?? "",
-      orientation: row.orientation ?? "",
-      observations: row.observations ?? "",
-      filePaths: normalizeFilePaths(row.files ?? []),
-    })),
-    visualInspectionRows: (primaryMotor?.visualInspectionRows ?? []).map((row) => ({
-      observation: row.observation ?? "",
-      isPreset: row.isPreset,
-      section: row.section ?? "",
-      orientation: row.orientation ?? "",
-      filePaths: normalizeFilePaths(row.files ?? []),
-    })),
-    visualInspectionMediaFilePaths: normalizeFilePaths(primaryMotor?.visualInspectionMedia ?? []),
-    signedReportFilePath: normalizeSingleFilePath(primaryMotor?.signedReport ?? null),
-    additionalRemarks: primaryMotor?.additionalRemarks ?? "",
+    motors: normalized.motors.map((motor) =>
+      mapMotorSessionToApi(
+        motor,
+        normalized.equipment ?? "",
+        normalized.beamEnergies ?? [],
+        normalized.radiographyPlan ?? "",
+        normalized.radiographyPlanRows ?? [],
+      ),
+    ),
   };
 };
 

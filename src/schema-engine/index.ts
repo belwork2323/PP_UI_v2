@@ -50,7 +50,24 @@ export {
   fetchSchemaDataSourceOptions,
   resolveSchemaApiEndpoint,
   staticDataSourceOptions,
+  buildRowApiContext,
+  getDependentColumnIds,
 } from "./rules/apiDependency";
+
+export {
+  hasTableCommitGroup,
+  getTableCommitGroup,
+  isPickerRow,
+  isExpandedRow,
+  commitPickerRow,
+  removeTableGroup,
+  isCommitAddReady,
+  isPickerColumnVisible,
+  isExpandedColumnReadonly,
+  findLastPickerRow,
+  resolveDerivedColumnValue,
+  formatReferenceRangeValue,
+} from "./rules/tableCommitGroup";
 
 export { evaluateRowFormula, applyFormulaColumns } from "./rules/formulaEval";
 export { validateFieldValue } from "./validation/validateField";
@@ -193,6 +210,20 @@ export {
   hydrateDispatchValuesFromSections,
   buildDispatchSectionPayload,
 } from "./adapters/dispatch.adapter";
+
+export {
+  QC_SCHEMA_FUNCTIONALITY,
+  QC_SCHEMA_TYPE,
+  QC_SCHEMA_VERSION,
+  qcSchemaFetchConfig,
+  buildQcSchemaRequest,
+  fetchQcSchema,
+  createQcInitialValues,
+  hydrateQcValuesFromSections,
+  buildQcSectionPayload,
+} from "./adapters/qc.adapter";
+
+export type { QcApiDivision, QcApiSubType } from "./adapters/qc.adapter";
 
 /** Back-compat alias */
 export { default as schemaManagementController } from "./controller/schemaEngineController";
