@@ -150,7 +150,8 @@ export default function InProgressBatchesTable({
                 </MuiStack>
               </TableCell>
             );
-          })}          {canViewDetails && (
+          })}
+          {canViewDetails && (
             <TableCell sx={{ ...th.table.header, width: 48 }} />
           )}
         </TableRow>

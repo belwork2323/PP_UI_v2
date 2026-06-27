@@ -63,6 +63,7 @@ type ApiSectionBase = {
   type?: string;
   fields?: ApiField[];
   tables?: ApiTable[];
+  sections?: ApiSection[];
   ui?: SchemaSection["ui"];
   children?: SchemaSection["children"];
 };
@@ -77,8 +78,7 @@ type ApiFlatTableSection = ApiSectionBase &
 type ApiSection = ApiSectionBase | ApiFlatTableSection;
 
 const isFlatTableSection = (section: ApiSection): section is ApiFlatTableSection =>
-  (section.type === "table" || section.type === "parameterTable") &&
-  Array.isArray((section as ApiFlatTableSection).columns);
+  section.type === "table" && Array.isArray((section as ApiFlatTableSection).columns);
 
 const toApiTableFromSection = (section: ApiFlatTableSection): ApiTable => ({
   tableId: section.sectionId ?? section.id,
@@ -138,6 +138,9 @@ const mapFieldType = (
   }
   if (normalized === "readonly") return { fieldType: "text", readonly: true };
   if (normalized === "formula") return { fieldType: "formula" };
+  if (normalized === "time") return { fieldType: "time" };
+  if (normalized === "datetime") return { fieldType: "datetime" };
+  if (normalized === "date") return { fieldType: "date" };
   if (normalized === "number" && readonly && /^(SR[_\s]?NO|S\.?\s*NO\.?)$/i.test(id)) {
     return { fieldType: "serial", readonly: true };
   }
@@ -346,7 +349,11 @@ const normalizeApiTable = (table: ApiTable): SchemaTableBlock => {
   const presetRows = buildPresetRowsFromApiTable(table);
   const hasFixedRows = presetRows.length > 0;
   const allowAdd =
-    !hasFixedRows && (table.addRowAllowed ?? table.dynamicRows !== false);
+    table.addRowAllowed === true
+      ? true
+      : table.addRowAllowed === false
+        ? false
+        : !hasFixedRows && (table.dynamicRows !== false);
   const columns = injectLeadingColumns(
     (table.columns ?? []).map(normalizeApiTableColumn),
     presetRows,
@@ -397,6 +404,8 @@ export const normalizeApiSection = (section: ApiSection): SchemaSection => {
 
   if (isFlatTableSection(section)) {
     children = [normalizeApiTable(toApiTableFromSection(section))];
+  } else if (section.type === "group" && section.sections?.length) {
+    children = section.sections.flatMap((nested) => normalizeApiSection(nested).children ?? []);
   } else if (section.type === "stageSpecific" && section.tables?.length) {
     children = section.tables.map((table, index) =>
       normalizeApiTable({

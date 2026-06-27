@@ -352,7 +352,6 @@ const SubscaleApproverPage = () => {
       statusMeta={SS_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
         { field: "motorType", label: "Type", options: ["S", "A", "B"] },
       ]}
     >
@@ -367,7 +366,6 @@ const SubscaleApproverPage = () => {
                     <TH>Motor ID</TH>
                     <TH>Submitted By</TH>
                     <TH>Created On</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -396,9 +394,6 @@ const SubscaleApproverPage = () => {
                           month: "short",
                           year: "numeric",
                         })}
-                      </TD>
-                      <TD>
-                        <PriorityChip priority={row.priority} />
                       </TD>
                       <TD>
                         <StatusChip status={row.status} />

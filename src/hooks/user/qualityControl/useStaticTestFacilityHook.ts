@@ -29,10 +29,11 @@ import {
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 import { QUALITY_CONTROL_STATUS } from "./qualityControlWorkflowData";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 const normalizeBatch = (batch: any): STFBatch => ({
   ...batch,
+  lotId: batch?.lotId ?? "",
   stfStatus: batch?.stfStatus ?? batch?.status ?? QUALITY_CONTROL_STATUS.INITIATED,
   formId: batch?.formId ?? null,
   subType: batch?.subType ?? null,
@@ -72,6 +73,9 @@ export const useStaticTestFacilityHook = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const batches = useMemo(
     () => mergeStfMockBatches((listParams.batches ?? []).map(normalizeBatch)),
@@ -108,6 +112,9 @@ export const useStaticTestFacilityHook = () => {
     setActionLoading(false);
     setBackConfirmOpen(false);
     setHasSavedDraft(false);
+    setDetailsRow(null);
+    setDetailsData(null);
+    setDetailsLoading(false);
   }, []);
 
   const getErrorMessage = (response: any, fallbackMessage: string) => {
@@ -420,6 +427,45 @@ export const useStaticTestFacilityHook = () => {
   const handleSaveDraft = async () => submitForm("draft");
   const handleSubmit = async () => submitForm("submit");
 
+  const handleViewDetails = useCallback(
+    async (row: STFBatch) => {
+      if (!row.formId) {
+        showAlert(messages.FORM_ID_MISSING, "error");
+        return;
+      }
+      if (!subDepartmentId) {
+        showAlert(messages.SUB_DEPARTMENT_MISSING, "error");
+        return;
+      }
+
+      setDetailsLoading(true);
+      const response = await stfController.fetchFormDetails({
+        formId: row.formId,
+        subDepartmentId,
+      });
+      setDetailsLoading(false);
+
+      if (!response?.success || !response?.data) {
+        showAlert(
+          response?.message || messages.DETAILS_FETCH_ERROR,
+          "error",
+        );
+        return;
+      }
+
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [showAlert, subDepartmentId, messages],
+  );
+
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
+
   return {
     ...listParams,
     batches,
@@ -447,6 +493,11 @@ export const useStaticTestFacilityHook = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewDetails,
+    handleBackFromDetails,
   };
 };
 

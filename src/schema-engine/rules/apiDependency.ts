@@ -19,6 +19,10 @@ const ENDPOINT_ALIASES: Record<string, string> = {
   "material-lots": USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
   MATERIAL_LOTS: USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
   RAW_MATERIAL_LOTS: USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS,
+  "raw-material-procurement-lot-list": USER_OPERATIONS_ENDPOINTS.LOT_LIST,
+  RAW_MATERIAL_PROCUREMENT_LOT_LIST: USER_OPERATIONS_ENDPOINTS.LOT_LIST,
+  "lot-list": USER_OPERATIONS_ENDPOINTS.LOT_LIST,
+  LOT_LIST: USER_OPERATIONS_ENDPOINTS.LOT_LIST,
   "materials-list": USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST,
   MATERIALS_LIST: USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST,
   "specification-list": USER_OPERATIONS_ENDPOINTS.MATERIAL_SPECIFICATION_LIST,
@@ -38,6 +42,7 @@ export const resolveSchemaApiEndpoint = (endpoint: string): string => {
   if (raw.includes("motors-stage-list")) return USER_OPERATIONS_ENDPOINTS.MOTORS_STAGE_LIST;
   if (raw.includes("approved-motors-list")) return USER_OPERATIONS_ENDPOINTS.APPROVED_MOTORS_LIST;
   if (raw.includes("material-lots")) return USER_OPERATIONS_ENDPOINTS.MATERIAL_LOTS;
+  if (raw.includes("raw-material-procurement/form/lot-list")) return USER_OPERATIONS_ENDPOINTS.LOT_LIST;
   if (raw.includes("materials/specification-list")) return USER_OPERATIONS_ENDPOINTS.MATERIAL_SPECIFICATION_LIST;
   if (raw.includes("materials-list")) return USER_OPERATIONS_ENDPOINTS.MATERIALS_LIST;
 
@@ -51,12 +56,25 @@ export const resolveSchemaApiEndpoint = (endpoint: string): string => {
 const TEMPLATE_PATTERN = /\{\{(\w+)\}\}|\$\{(\w+)\}/g;
 
 const resolveTemplateValue = (value: unknown, apiContext?: SchemaApiContext): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveTemplateValue(item, apiContext));
+  }
   if (typeof value !== "string" || (!value.includes("{{") && !value.includes("${"))) return value;
   return value.replace(TEMPLATE_PATTERN, (match, braceToken: string, dollarToken: string) => {
     const token = braceToken ?? dollarToken;
     const ctx = apiContext?.[token];
     return ctx != null && ctx !== "" ? String(ctx) : match;
   });
+};
+
+const isContextTemplate = (value: unknown, token: string): boolean => {
+  if (typeof value !== "string") return false;
+  return value.includes(`{{${token}}}`) || value.includes(`\${${token}}`);
+};
+
+const hasTemplateToken = (value: unknown): boolean => {
+  if (Array.isArray(value)) return value.some(hasTemplateToken);
+  return typeof value === "string" && (value.includes("{{") || value.includes("${"));
 };
 
 const mergeApiContext = (
@@ -69,8 +87,19 @@ const mergeApiContext = (
 
   const subDeptId = apiContext?.subDepartmentId;
   if (subDeptId) {
-    if ("subdepartmentId" in requestBody) params.subdepartmentId = subDeptId;
-    if ("subDepartmentId" in requestBody) params.subDepartmentId = subDeptId;
+    if ("subdepartmentId" in requestBody && isContextTemplate(requestBody.subdepartmentId, "subDepartmentId")) {
+      params.subdepartmentId = subDeptId;
+    }
+    if ("subDepartmentId" in requestBody && isContextTemplate(requestBody.subDepartmentId, "subDepartmentId")) {
+      params.subDepartmentId = subDeptId;
+    }
+  }
+
+  const materialCode = apiContext?.materialCode;
+  if (materialCode != null && String(materialCode).trim()) {
+    if ("materialCode" in requestBody && hasTemplateToken(requestBody.materialCode)) {
+      params.materialCode = [String(materialCode).trim()];
+    }
   }
 
   const batchId = apiContext?.batchId?.trim();

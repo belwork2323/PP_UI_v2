@@ -9,26 +9,25 @@ import {
   updateQCDivisionFormApi,
 } from "../../../data/api/users/quality_control/qcDivisionApi";
 
+export type DivisionDetailEntry = {
+  division: string;
+  subType: string | null;
+  data: Record<string, unknown>;
+};
+
 export type QCDivisionCreatePayload = {
   batchId: string;
   subDepartmentId: number;
   formSubmissionType: "DRAFT" | "SUBMIT";
-  schemaVersion?: string;
-  schemaType?: string;
-  division?: string | null;
-  subType?: string | null;
-  sections: unknown[];
+  divisionDetails: DivisionDetailEntry[];
 };
 
 export type QCDivisionUpdatePayload = {
   formId: string;
+  batchId: string;
   subDepartmentId: number;
-  formSubmissionType: "DRAFT" | "UPDATE";
-  schemaVersion?: string;
-  schemaType?: string;
-  division?: string | null;
-  subType?: string | null;
-  sections: unknown[];
+  formSubmissionType: "DRAFT" | "SUBMIT";
+  divisionDetails: DivisionDetailEntry[];
 };
 
 export type QCDivisionDetailsPayload = {

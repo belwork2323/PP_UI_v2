@@ -7,6 +7,19 @@ import {
   type QcApiSubType,
 } from "../../../schema-engine/adapters/qc.adapter";
 import { getQcSchemaCacheKey } from "../../../hooks/user/qualityControl/qcFlowConfig";
+import {
+  getMixingFinalMixEntries,
+  sliceMixingFinalMixSchema,
+} from "../../../hooks/user/qualityControl/qcMixingConfig";
+import {
+  getLiquidSchemaForBothEntry,
+  getSchemaForDivisionEntry,
+  getSolidSchemaForBothEntry,
+} from "../../../hooks/user/qualityControl/qcDivisionEntries";
+import type {
+  QcDivisionEntry,
+  QcDivisionEntryValues,
+} from "../../../hooks/user/qualityControl/qcDivisionEntryTypes";
 import type { QcProcessingSlot } from "../../../hooks/user/qualityControl/qcProcessingConfig";
 import {
   schemaValuesHaveUserData,
@@ -14,6 +27,8 @@ import {
   type SchemaFormValues,
   type SchemaSectionSubmission,
 } from "../../../schema-engine";
+
+export type { QcDivisionEntry, QcDivisionEntryValues } from "../../../hooks/user/qualityControl/qcDivisionEntryTypes";
 
 export type QcPremixEntry = {
   premixNo: number;
@@ -30,6 +45,10 @@ export type QualityControlFormState = {
   schemasByKey: Partial<Record<string, SchemaDocumentV2>>;
   schemaFormValues: SchemaFormValues;
   savedSections?: SchemaSectionSubmission[];
+  divisionEntries?: QcDivisionEntry[];
+  divisionEntryValues?: Record<string, QcDivisionEntryValues>;
+  /** Shared final mix header/parameter table — common across all final mix entries. */
+  mixingFinalMixDetailsValues?: SchemaFormValues;
   solidPremixEntries?: QcPremixEntry[];
   solidPremixValuesByNo?: Record<number, SchemaFormValues>;
   liquidPremixEntries?: QcPremixEntry[];
@@ -54,11 +73,29 @@ export const createDefaultQualityControlFormState = (): QualityControlFormState 
   schemasByKey: {},
   schemaFormValues: {},
   savedSections: undefined,
+  divisionEntries: [],
+  divisionEntryValues: {},
   solidPremixEntries: [],
   solidPremixValuesByNo: {},
   liquidPremixEntries: [],
   liquidPremixValuesByNo: {},
 });
+
+export const mergeSchemaIntoFormCache = (
+  state: QualityControlFormState,
+  schema: SchemaDocumentV2,
+  division: QcApiDivision,
+  subType: QcApiSubType,
+): QualityControlFormState => {
+  const key = getQcSchemaCacheKey(division, subType);
+  return {
+    ...state,
+    schemasByKey: {
+      ...(state.schemasByKey ?? {}),
+      [key]: schema,
+    },
+  };
+};
 
 export const getProcessingSchemaFromFormState = (
   form: QualityControlFormState,
@@ -202,6 +239,19 @@ const premixValuesHaveUserData = (valuesByNo?: Record<number, SchemaFormValues>)
   Object.values(valuesByNo ?? {}).some((values) => schemaValuesHaveUserData(values ?? {}));
 
 export const hasAnyQualityControlValue = (form: QualityControlFormState) => {
+  const divisionValues = Object.values(form.divisionEntryValues ?? {});
+  if (
+    divisionValues.some(
+      (entry) =>
+        schemaValuesHaveUserData(entry.schemaValues ?? {}) ||
+        schemaValuesHaveUserData(entry.liquidSchemaValues ?? {}),
+    )
+  ) {
+    return true;
+  }
+
+  if (schemaValuesHaveUserData(form.mixingFinalMixDetailsValues ?? {})) return true;
+
   if (premixValuesHaveUserData(form.solidPremixValuesByNo)) return true;
   if (premixValuesHaveUserData(form.liquidPremixValuesByNo)) return true;
   return schemaValuesHaveUserData(form.schemaFormValues ?? {});
@@ -221,15 +271,206 @@ const buildPremixSections = (
     })),
   );
 
+const buildDivisionEntrySections = (
+  form: QualityControlFormState,
+  entry: QcDivisionEntry,
+) => {
+  const entryValues = form.divisionEntryValues?.[entry.entryId];
+  if (!entryValues) return [];
+
+  if (entry.kind === "BOTH_PREMIX" && entry.premixNo) {
+    const solidSchema = getSolidSchemaForBothEntry(form);
+    const liquidSchema = getLiquidSchemaForBothEntry(form);
+    if (!solidSchema || !liquidSchema) return [];
+
+    return [
+      ...buildPremixSections(
+        solidSchema,
+        [{ premixNo: entry.premixNo }],
+        { [entry.premixNo]: entryValues.schemaValues },
+        "SOLID_PROCESSING",
+      ),
+      ...buildPremixSections(
+        liquidSchema,
+        [{ premixNo: entry.premixNo }],
+        { [entry.premixNo]: entryValues.liquidSchemaValues ?? {} },
+        "LIQUID_PROCESSING",
+      ),
+    ];
+  }
+
+  const schema = getSchemaForDivisionEntry(form, entry);
+  if (!schema) return [];
+
+  if (entry.kind === "MIXING_FINAL_MIX") {
+    const viscositySchema = sliceMixingFinalMixSchema(schema, "viscosity");
+    if (!viscositySchema) return [];
+
+    return buildQcSectionPayload(viscositySchema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      premixNo: entry.premixNo,
+      subType: entry.subType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "HARDWARE_PROCESS") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      subType: entry.subType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "CASTING_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+    }));
+  }
+
+  if (entry.kind === "CURING_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      subType: entry.subType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "TRIMMING_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      motorCount: entry.motorCount,
+      motorReceivedDate: entry.motorReceivedDate,
+      subType: entry.subType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "DE_CORING_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+    }));
+  }
+
+  if (entry.kind === "POST_CURE_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      subType: entry.subType ?? undefined,
+      inhibitorType: entry.inhibitorType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "NDT_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+    }));
+  }
+
+  if (entry.kind === "PROPELLANT_PROCESS") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      subType: entry.subType ?? undefined,
+    }));
+  }
+
+  if (entry.kind === "WEIGHTMENT_MOTOR") {
+    return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+      ...section,
+      motorId: entry.motorId,
+      weighscaleNo: entry.weighscaleNo,
+      calibrationDueDate: entry.calibrationDueDate,
+    }));
+  }
+
+  if (entry.premixNo != null) {
+    if (entry.kind === "MIXING_PREMIX") {
+      return buildQcSectionPayload(schema, entryValues.schemaValues).map((section) => ({
+        ...section,
+        premixNo: entry.premixNo,
+        subType: entry.subType ?? undefined,
+      }));
+    }
+
+    const slot =
+      entry.kind === "LIQUID_PREMIX" || entry.subType === "LIQUID_PROCESSING"
+        ? "LIQUID_PROCESSING"
+        : "SOLID_PROCESSING";
+    return buildPremixSections(
+      schema,
+      [{ premixNo: entry.premixNo }],
+      { [entry.premixNo]: entryValues.schemaValues },
+      slot,
+    );
+  }
+
+  return buildQcSectionPayload(schema, entryValues.schemaValues);
+};
+
 export const mapQualityControlPayload = (
   form: QualityControlFormState,
 ): {
-  schemaVersion?: string;
-  schemaType?: string;
-  division?: QcApiDivision | null;
-  subType?: QcApiSubType;
-  sections: SchemaSectionSubmission[];
+  divisionDetails: Array<{
+    division: QcApiDivision;
+    subType: QcApiSubType;
+    data: Record<string, unknown>;
+  }>;
 } => {
+  const divisionEntries = form.divisionEntries ?? [];
+
+  const buildDivisionDetail = (
+    division: QcApiDivision,
+    subType: QcApiSubType,
+    sections: SchemaSectionSubmission[],
+  ) => ({
+    division,
+    subType,
+    data: { sections },
+  });
+
+  if (divisionEntries.length > 0) {
+    const finalMixEntries = getMixingFinalMixEntries(divisionEntries);
+    const primaryFinalMixEntry = finalMixEntries[0];
+    const finalMixSchema = primaryFinalMixEntry
+      ? getSchemaForDivisionEntry(form, primaryFinalMixEntry)
+      : null;
+    const sharedFinalMixDetails =
+      finalMixSchema && form.mixingFinalMixDetailsValues
+        ? buildQcSectionPayload(
+            sliceMixingFinalMixSchema(finalMixSchema, "details") ?? finalMixSchema,
+            form.mixingFinalMixDetailsValues,
+          )
+        : [];
+
+    const grouped = new Map<QcApiDivision, QcDivisionEntry[]>();
+    for (const entry of divisionEntries) {
+      const entries = grouped.get(entry.apiDivision);
+      if (entries) {
+        entries.push(entry);
+      } else {
+        grouped.set(entry.apiDivision, [entry]);
+      }
+    }
+
+    const divisionDetails = Array.from(grouped.entries()).map(([division, entries]) => {
+      const sections = [
+        ...(division === "MIXING" ? sharedFinalMixDetails : []),
+        ...entries.flatMap((entry) => buildDivisionEntrySections(form, entry)),
+      ];
+      const hasMixedSubTypes = entries.some((e) => e.subType !== entries[0].subType);
+      return buildDivisionDetail(
+        division,
+        hasMixedSubTypes ? null : entries[0].subType,
+        sections,
+      );
+    });
+
+    return { divisionDetails };
+  }
+
   const solidSchema = getProcessingSchemaFromFormState(form, "SOLID_PROCESSING");
   const liquidSchema = getProcessingSchemaFromFormState(form, "LIQUID_PROCESSING");
   const solidEntries = form.solidPremixEntries ?? [];
@@ -247,22 +488,21 @@ export const mapQualityControlPayload = (
         : []),
     ];
 
-    const primarySchema = solidSchema ?? liquidSchema;
+    const division: QcApiDivision = form.division ?? "RAW_MATERIAL_PROCESSING";
+    const subType: QcApiSubType = hasSolidPremix && hasLiquidPremix ? null : hasSolidPremix ? "SOLID_PROCESSING" : "LIQUID_PROCESSING";
 
     return {
-      schemaVersion: primarySchema?.schemaVersion,
-      schemaType: primarySchema?.schemaType ?? QC_SCHEMA_TYPE,
-      division: form.division ?? "RAW_MATERIAL_PROCESSING",
-      subType: hasSolidPremix && hasLiquidPremix ? null : hasSolidPremix ? "SOLID_PROCESSING" : "LIQUID_PROCESSING",
-      sections,
+      divisionDetails: [buildDivisionDetail(division, subType, sections)],
     };
   }
 
   return {
-    schemaVersion: form.qcSchema?.schemaVersion,
-    schemaType: form.qcSchema?.schemaType ?? QC_SCHEMA_TYPE,
-    division: form.division,
-    subType: form.subType,
-    sections: form.qcSchema ? buildQcSectionPayload(form.qcSchema, form.schemaFormValues) : [],
+    divisionDetails: [
+      buildDivisionDetail(
+        form.division ?? "RAW_MATERIAL_REVALIDATION",
+        form.subType,
+        form.qcSchema ? buildQcSectionPayload(form.qcSchema, form.schemaFormValues) : [],
+      ),
+    ],
   };
 };

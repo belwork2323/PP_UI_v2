@@ -12,6 +12,7 @@ import FilterSelect from "../../../../components/common/FilterSelect";
 import BatchListTable    from "./components/BatchListTable";
 import BatchFormModal    from "./components/BatchFormModal";
 import BatchImplementationModal from "./components/BatchImplementationModal";
+import BatchDetailsDialog from "./components/BatchDetailsDialog";
 import DeleteBatchDialog from "./components/DeleteBatchDialog";
 
 import { useBatchList }    from "../../../../../hooks/admin/batch_management/useBatchListHook";
@@ -197,7 +198,7 @@ const BatchManagementPage = ({ mode = "light" }: any) => {
         onEdit={actions.openEdit}
         onDelete={actions.openDelete}
         onCompleteImplementation={actions.openCompleteImplementation}
-        onViewImplementation={actions.openViewImplementation}
+        onViewImplementation={actions.openViewBatchDetails}
         onPageChange={(_: any, p: number) => listParams.setPage(p)}
         onRowsPerPageChange={(e: any) => { listParams.setRowsPerPage(+e.target.value); listParams.setPage(0); }}
       />
@@ -225,6 +226,14 @@ const BatchManagementPage = ({ mode = "light" }: any) => {
         onFetchApprovedMotors={lookups.fetchApprovedMotors}
         onClearApprovedMotors={lookups.clearApprovedMotors}
         saving={actions.saving}
+        t={t}
+      />
+
+      <BatchDetailsDialog
+        open={actions.detailsDialogOpen}
+        onClose={actions.closeViewBatchDetails}
+        batch={actions.detailsTarget}
+        loading={actions.detailsLoading}
         t={t}
       />
 

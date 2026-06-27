@@ -4,6 +4,7 @@ import {
   SchemaUI,
   createQcInitialValues,
   hydrateQcValuesFromSections,
+  schemaValuesHaveUserData,
   type SchemaDocumentV2,
   type SchemaFormValues,
   type SchemaSectionSubmission,
@@ -14,9 +15,12 @@ type QCSchemaPanelProps = {
   schema: SchemaDocumentV2 | null;
   formValues: SchemaFormValues;
   savedSections?: SchemaSectionSubmission[];
+  /** Resets one-time hydration when switching between division entries. */
+  hydrationKey?: string;
   subDepartmentId?: number;
   batchId?: string;
   onChange: (values: SchemaFormValues) => void;
+  readOnly?: boolean;
   loading?: boolean;
   error?: string | null;
 };
@@ -25,9 +29,11 @@ const QCSchemaPanel = ({
   schema,
   formValues,
   savedSections,
+  hydrationKey,
   subDepartmentId,
   batchId,
   onChange,
+  readOnly = false,
   loading = false,
   error = null,
 }: QCSchemaPanelProps) => {
@@ -35,19 +41,27 @@ const QCSchemaPanel = ({
 
   useEffect(() => {
     hydratedRef.current = false;
-  }, [savedSections, schema?.schemaVersion, schema?.data?.context]);
+  }, [hydrationKey, savedSections, schema?.schemaVersion, schema?.data?.context]);
 
   useEffect(() => {
     if (!schema) return;
     if (hydratedRef.current) return;
 
+    const hasExistingValues =
+      schemaValuesHaveUserData(formValues ?? {}) || Object.keys(formValues ?? {}).length > 0;
+
+    if (hasExistingValues) {
+      hydratedRef.current = true;
+      return;
+    }
+
     if (savedSections?.length) {
       onChange(hydrateQcValuesFromSections(schema, savedSections));
-    } else if (Object.keys(formValues ?? {}).length === 0) {
+    } else {
       onChange(createQcInitialValues(schema));
     }
     hydratedRef.current = true;
-  }, [schema, savedSections]);
+  }, [schema, savedSections, formValues, onChange]);
 
   const themeTokens = useMemo(
     () => ({
@@ -69,6 +83,7 @@ const QCSchemaPanel = ({
         schema={schema}
         value={formValues}
         onChange={onChange}
+        readOnly={readOnly}
         loading={loading}
         error={error}
         themeTokens={themeTokens}

@@ -7,7 +7,7 @@
  * backwards compatibility.
  */
 
-import { motorStageLabel } from "../../../../../../data/models/admin/BatchManagementModel";
+import { motorStageLabel, formatBatchSubDepartmentLabel, parseBatchWorkflowFromApi } from "../../../../../../data/models/admin/BatchManagementModel";
 import { normalizeSubdepartmentBatchStatus } from "../../../../../../data/models/user/SubdepartmentBatchModel";
 
 // Re-export style configs from their canonical home in the theme
@@ -41,18 +41,40 @@ export const getMotorStage = (b: any): string => {
 
 /** @deprecated Use getMotorStage */
 export const getMotorType = getMotorStage;
-/** stage is not a flat string; the stage department is in b.department.departmentName */
-export const getStage      = (b: any): string => b.department?.departmentName || "—";
+/** Current department name (Sourcing, Manufacturing, etc.) */
+export const getStage = (b: any): string => {
+  const name = String(b?.department?.departmentName ?? "").trim();
+  if (name) return name;
+
+  const workflow = parseBatchWorkflowFromApi({
+    ...(b ?? {}),
+    stage: b?.rawStage ?? b?.stage,
+  });
+  return workflow.department?.departmentName?.trim() || "—";
+};
+
 export const getStatus     = (b: any): string => normalizeSubdepartmentBatchStatus(b.status);
 export const getPriority   = (b: any): string => b.priority    || "Medium";
 /** top-level department object */
-export const getDept       = (b: any): string => b.department?.departmentName || "—";
-/** first sub-department name, or the API's subDepartment string */
+export const getDept       = getStage;
+/** Current sub-department where the batch is active */
 export const getSubDept    = (b: any): string => {
-  if (Array.isArray(b.subDepartments) && b.subDepartments.length > 0) {
-    return b.subDepartments[0]?.subDepartmentName || "—";
+  if (Array.isArray(b?.subDepartments) && b.subDepartments.length > 0) {
+    const name = b.subDepartments[0]?.subDepartmentName;
+    return name ? formatBatchSubDepartmentLabel(name) : "—";
   }
-  return b.subDepartment || b.subDept || "—";
+
+  const flat = b?.subDepartment ?? b?.subDept ?? b?.currentSubDepartment ?? b?.subDepartmentName;
+  if (typeof flat === "string" && flat.trim()) {
+    return formatBatchSubDepartmentLabel(flat);
+  }
+
+  const workflow = parseBatchWorkflowFromApi({
+    ...(b ?? {}),
+    stage: b?.rawStage ?? b?.stage,
+  });
+  const name = workflow.subDepartments[0]?.subDepartmentName;
+  return name ? formatBatchSubDepartmentLabel(name) : "—";
 };
 /** Display label for system manager (list uses nested object; legacy uses flat id) */
 export const getSystemManagerLabel = (b: any): string =>

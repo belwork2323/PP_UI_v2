@@ -12,6 +12,25 @@ export const RMP_SCHEMA_FUNCTIONALITY = "CREATE_RAW_MATERIAL_PREPARATION_FORM";
 export const RMP_SCHEMA_TYPE = "RAW_MATERIALS";
 export const RMP_SCHEMA_VERSION = "1.0";
 
+/** Approved procurement lots for Feed Material Details lot dropdowns */
+export const RAW_MATERIAL_PROCUREMENT_LOT_DATASOURCE = {
+  type: "api" as const,
+  api: {
+    endpoint: "raw-material-procurement-lot-list",
+    method: "POST" as const,
+    requestBody: {
+      limit: 500,
+      page: 1,
+      status: ["APPROVED"],
+      subDepartmentId: 1,
+      materialCode: ["{{materialCode}}"],
+    },
+    responsePath: "data.lots",
+    displayKey: "lotId",
+    valueKey: "lotId",
+  },
+};
+
 export const rawMaterialPrepSchemaFetchConfig: SchemaFetchConfig = {
   endpoint: USER_RAW_MATERIAL_PREPARATION_ENDPOINTS.SCHEMA_RAW_MATERIAL,
 };
@@ -31,6 +50,7 @@ export const buildRawMaterialSchemaRequestFromCodes = (params: {
 }) => ({
   schemaVersion: RMP_SCHEMA_VERSION,
   schemaType: RMP_SCHEMA_TYPE,
+  layout: { type: "flat" },
   materialId: params.materialId,
   materialCode: params.materialCode,
   gradeId: params.gradeId ?? null,

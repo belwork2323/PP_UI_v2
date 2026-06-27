@@ -29,7 +29,22 @@ const QualityControlPage = () => {
     selectedRawMaterialType,
     selectedProcessingType,
     selectedPremix,
+    selectedMixingStage,
+    selectedStfMotorType,
+    selectedMotorId,
+    selectedHardwareProcesses,
+    selectedCuringType,
+    selectedTrimmingMotorCount,
+    trimmingMotorReceivedDate,
+    selectedPostCureOperation,
+    selectedInhibitorType,
+    selectedPropellantProcess,
+    weightmentWeighscaleNo,
+    weightmentCalibrationDueDate,
     addedPremixNumbers,
+    addedDivisionEntryKeys,
+    activeDivisionGroupIndex,
+    activeDivisionSubIndex,
     loadingFormDetails,
     schemaLoading,
     schemaError,
@@ -43,18 +58,32 @@ const QualityControlPage = () => {
     handleRawMaterialTypeChange,
     handleProcessingTypeChange,
     handlePremixChange,
+    handleMixingStageChange,
+    handleStfMotorTypeChange,
+    handleMotorIdChange,
+    handleHardwareProcessesChange,
+    handleCuringTypeChange,
+    handleTrimmingMotorCountChange,
+    handleTrimmingMotorReceivedDateChange,
+    handlePostCureOperationChange,
+    handleInhibitorTypeChange,
+    handlePropellantProcessChange,
+    handleWeightmentWeighscaleNoChange,
+    handleWeightmentCalibrationDueDateChange,
     handleLoadQcForm,
-    handleFormValuesChange,
-    handleSolidPremixValuesChange,
-    handleLiquidPremixValuesChange,
-    handleRemoveSolidPremix,
-    handleRemoveLiquidPremix,
-    handleRemoveCombinedPremix,
+    handleDivisionEntryValuesChange,
+    handleDivisionEntryLiquidValuesChange,
+    handleMixingFinalMixDetailsChange,
+    handleRemoveDivisionEntry,
+    setActiveDivisionGroupIndex,
+    setActiveDivisionSubIndex,
+    readOnly,
     handleSaveDraft,
     handleSubmit,
   } = hookState;
 
   const canAct =
+    (formData.divisionEntries?.length ?? 0) > 0 ||
     formData.schemaFormLoaded ||
     (formData.solidPremixEntries?.length ?? 0) > 0 ||
     (formData.liquidPremixEntries?.length ?? 0) > 0;
@@ -99,8 +128,24 @@ const QualityControlPage = () => {
               selectedRawMaterialType={selectedRawMaterialType}
               selectedProcessingType={selectedProcessingType}
               selectedPremix={selectedPremix}
+              selectedMixingStage={selectedMixingStage}
+              selectedStfMotorType={selectedStfMotorType}
+              selectedMotorId={selectedMotorId}
+              selectedHardwareProcesses={selectedHardwareProcesses}
+              selectedCuringType={selectedCuringType}
+              selectedTrimmingMotorCount={selectedTrimmingMotorCount}
+              trimmingMotorReceivedDate={trimmingMotorReceivedDate}
+              selectedPostCureOperation={selectedPostCureOperation}
+              selectedInhibitorType={selectedInhibitorType}
+              selectedPropellantProcess={selectedPropellantProcess}
+              weightmentWeighscaleNo={weightmentWeighscaleNo}
+              weightmentCalibrationDueDate={weightmentCalibrationDueDate}
               addedPremixNumbers={addedPremixNumbers}
+              addedDivisionEntryKeys={addedDivisionEntryKeys}
+              activeDivisionGroupIndex={activeDivisionGroupIndex}
+              activeDivisionSubIndex={activeDivisionSubIndex}
               isEditMode={isEditMode}
+              readOnly={readOnly}
               schemaLoading={schemaLoading}
               schemaError={schemaError}
               flowBarTheme={flowBarTheme}
@@ -108,18 +153,30 @@ const QualityControlPage = () => {
               onRawMaterialTypeChange={handleRawMaterialTypeChange}
               onProcessingTypeChange={handleProcessingTypeChange}
               onPremixChange={handlePremixChange}
+              onMixingStageChange={handleMixingStageChange}
+              onStfMotorTypeChange={handleStfMotorTypeChange}
+              onMotorIdChange={handleMotorIdChange}
+              onHardwareProcessesChange={handleHardwareProcessesChange}
+              onCuringTypeChange={handleCuringTypeChange}
+              onTrimmingMotorCountChange={handleTrimmingMotorCountChange}
+              onTrimmingMotorReceivedDateChange={handleTrimmingMotorReceivedDateChange}
+              onPostCureOperationChange={handlePostCureOperationChange}
+              onInhibitorTypeChange={handleInhibitorTypeChange}
+              onPropellantProcessChange={handlePropellantProcessChange}
+              onWeightmentWeighscaleNoChange={handleWeightmentWeighscaleNoChange}
+              onWeightmentCalibrationDueDateChange={handleWeightmentCalibrationDueDateChange}
               onLoadForm={handleLoadQcForm}
-              onFormValuesChange={handleFormValuesChange}
-              onSolidPremixValuesChange={handleSolidPremixValuesChange}
-              onLiquidPremixValuesChange={handleLiquidPremixValuesChange}
-              onRemoveSolidPremix={handleRemoveSolidPremix}
-              onRemoveLiquidPremix={handleRemoveLiquidPremix}
-              onRemoveCombinedPremix={handleRemoveCombinedPremix}
+              onActiveDivisionGroupIndexChange={setActiveDivisionGroupIndex}
+              onActiveDivisionSubIndexChange={setActiveDivisionSubIndex}
+              onDivisionEntryValuesChange={handleDivisionEntryValuesChange}
+              onDivisionEntryLiquidValuesChange={handleDivisionEntryLiquidValuesChange}
+              onMixingFinalMixDetailsChange={handleMixingFinalMixDetailsChange}
+              onRemoveDivisionEntry={handleRemoveDivisionEntry}
               theme={theme}
             />
           ) : null}
 
-          {!loadingFormDetails ? (
+          {!loadingFormDetails && !readOnly ? (
             <>
               <Box
                 sx={{

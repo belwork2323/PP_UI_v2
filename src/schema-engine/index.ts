@@ -18,6 +18,7 @@ export {
   schemaValuesHaveUserData,
   getBlockValue,
   setBlockValue,
+  scopedFormKey,
 } from "./state/formState";
 
 export { parseSchemaDocument } from "./utils/schemaUtils";
@@ -90,6 +91,7 @@ export {
   findMaterialInList,
   findGradeInMaterial,
   derivePremixMaterialType,
+  RAW_MATERIAL_PROCUREMENT_LOT_DATASOURCE,
 } from "./adapters/rawMaterialPreparation.adapter";
 
 export type {

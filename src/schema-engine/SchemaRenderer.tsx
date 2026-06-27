@@ -30,8 +30,12 @@ const SectionContent = ({
   ctx: Parameters<typeof BlockRenderer>[0]["ctx"];
 }) => (
   <GridFields direction={section.ui?.direction ?? "column"} wrap={section.ui?.wrap ?? true} gap={1.5}>
-    {section.children.map((block) => (
-      <BlockRenderer key={block.id} block={block} ctx={ctx} />
+    {section.children.map((block, index) => (
+      <BlockRenderer
+        key={`${block.type}-${block.id || index}`}
+        block={block}
+        ctx={{ ...ctx, valueScope: section.id }}
+      />
     ))}
   </GridFields>
 );

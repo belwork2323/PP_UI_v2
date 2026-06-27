@@ -307,7 +307,6 @@ const RMRDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
           </Stack>
 
           <Stack direction="row" gap={1} alignItems="center">
-            <PriorityChip priority={item.priority} />
             <Button
               size="small" variant="contained"
               startIcon={<PictureAsPdfRoundedIcon sx={{ fontSize: "14px !important" }} />}
@@ -341,7 +340,6 @@ const RMRDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
               { label: "Batch ID",     value: item.batchId },
               { label: "Submitted By", value: item.submittedBy },
               { label: "Date",         value: new Date(item.createdOn).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
-              { label: "Priority",     value: item.priority },
             ].map(({ label, value }) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: "0.62rem", fontWeight: 700, color: BRAND.textSub, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -427,9 +425,6 @@ const RawMaterialRevalidationApproverPage = () => {
       statusField="status"
       statusMeta={QC_STATUS_META}
       searchKeys={["batchId", "submittedBy"]}
-      filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
-      ]}
     >
       {(filtered) => (
         <>
@@ -450,7 +445,6 @@ const RawMaterialRevalidationApproverPage = () => {
                     <TH>Submitted By</TH>
                     <TH>Ingredients</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -499,7 +493,6 @@ const RawMaterialRevalidationApproverPage = () => {
                         })}
                       </TD>
 
-                      <TD><PriorityChip priority={row.priority} /></TD>
                       <TD><StatusChip  status={row.status}   /></TD>
 
                       <TD sx={{ textAlign: "center" }}>

@@ -53,7 +53,9 @@ export default function BatchImplementationModal({
   saving,
   t,
 }: any) {
-  const { modal, input } = t;
+  const { modal, implementationModal, input } = t;
+  const implModal = implementationModal ?? modal;
+  const materialsTable = implModal.materialsTable;
   const [selectedMaterialCode, setSelectedMaterialCode] = useState<string>("");
   const {
     materialOptions,
@@ -168,7 +170,7 @@ export default function BatchImplementationModal({
       TransitionComponent={Zoom}
       maxWidth={false}
       fullWidth
-      PaperProps={{ sx: modal.paper }}
+      PaperProps={{ sx: implModal.paper }}
     >
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <DialogTitle sx={{ p: 0 }}>
@@ -193,7 +195,7 @@ export default function BatchImplementationModal({
       </DialogTitle>
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
-      <DialogContent sx={modal.content}>
+      <DialogContent sx={implModal.content ?? modal.content}>
         <Box sx={modal.headerGap} />
         <Stack spacing={modal.stackSpacing}>
 
@@ -322,20 +324,22 @@ export default function BatchImplementationModal({
             </Box>
 
             {(form.identificationSheet?.materials?.length ?? 0) > 0 ? (
-              <TableContainer>
-                <Table size="small">
+              <TableContainer sx={materialsTable?.container}>
+                <Table size="small" sx={materialsTable?.table}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Sr. No</TableCell>
-                      <TableCell>Material Code</TableCell>
-                      <TableCell>Material Name</TableCell>
-                      <TableCell>Lot ID</TableCell>
-                      <TableCell>Manufacturer</TableCell>
-                      <TableCell>Required Composition %</TableCell>
-                      <TableCell>Qty/Premix</TableCell>
-                      <TableCell>Revalidation From</TableCell>
-                      <TableCell>Revalidation To</TableCell>
-                      {!readOnly && <TableCell>Action</TableCell>}
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.srNoCell }}>Sr. No</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.codeCell }}>Material Code</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.nameCell }}>Material Name</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.lotCell }}>Lot ID</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.manufacturerCell }}>Manufacturer</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.numericCell }}>Required Composition %</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.numericCell }}>Qty/Premix</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.dateCell }}>Revalidation From</TableCell>
+                      <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.dateCell }}>Revalidation To</TableCell>
+                      {!readOnly && (
+                        <TableCell sx={{ ...materialsTable?.headCell, ...materialsTable?.actionCell }}>Action</TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -354,22 +358,22 @@ export default function BatchImplementationModal({
 
                       return (
                       <TableRow key={idx}>
-                        <TableCell>{material.srNo}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.srNoCell }}>{material.srNo}</TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.codeCell }}>
                           <Input
                             value={material.materialCode}
                             disabled
                             size="small" sx={input}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.nameCell }}>
                           <Input
                             value={material.materialName}
                             disabled
                             size="small" sx={input}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.lotCell }}>
                           <FormControl fullWidth size="small" sx={input}>
                             <Select
                               value={material.lotId}
@@ -395,7 +399,7 @@ export default function BatchImplementationModal({
                             </Select>
                           </FormControl>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.manufacturerCell }}>
                           <Input
                             value={materialManufacturer(material)}
                             placeholder="Select a lot"
@@ -404,7 +408,7 @@ export default function BatchImplementationModal({
                             sx={input}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.numericCell }}>
                           <Input
                             type="number"
                             value={displayNumberValue(material.requiredComposition)}
@@ -421,7 +425,7 @@ export default function BatchImplementationModal({
                             disabled={fieldDisabled}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.numericCell }}>
                           <Input
                             type="number"
                             value={displayNumberValue(material.quantityPerPremix)}
@@ -438,7 +442,7 @@ export default function BatchImplementationModal({
                             disabled={fieldDisabled}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.dateCell }}>
                           <Input
                             type="date"
                             value={material.revalidationFromDate ?? ""}
@@ -448,7 +452,7 @@ export default function BatchImplementationModal({
                             disabled={fieldDisabled}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.dateCell }}>
                           <Input
                             type="date"
                             value={material.revalidationToDate ?? ""}
@@ -459,7 +463,7 @@ export default function BatchImplementationModal({
                           />
                         </TableCell>
                         {!readOnly && (
-                          <TableCell>
+                          <TableCell sx={{ ...materialsTable?.bodyCell, ...materialsTable?.actionCell }}>
                             <Button
                               size="small"
                               color="error"

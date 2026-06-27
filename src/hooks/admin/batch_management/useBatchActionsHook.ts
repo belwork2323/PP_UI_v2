@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { batchManagementController } from "../../../controllers/admin/batch_management/batchManagementController";
-import { parseIdentificationSheetFromApi } from "../../../data/models/admin/BatchManagementModel";
+import { parseIdentificationSheetFromApi, mergeBatchListAndDetailRows } from "../../../data/models/admin/BatchManagementModel";
 import { useAlertStore } from "../../../app/store/alertStore";
 import { STRINGS } from "../../../app/config/strings";
 
@@ -54,6 +54,10 @@ export const useBatchActions = (userOptions: any[], onSuccess: () => void) => {
   const [implSaving, setImplSaving]         = useState(false);
   const [implViewOnly, setImplViewOnly]     = useState(false);
   const [deleting, setDeleting]             = useState(false);
+
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [detailsTarget, setDetailsTarget]         = useState<any>(null);
+  const [detailsLoading, setDetailsLoading]       = useState(false);
 
   /* ── Convert BatchListItemModel to batch form ──────────────────────────── */
   const batchModelToForm = (b: any) => {
@@ -152,9 +156,32 @@ export const useBatchActions = (userOptions: any[], onSuccess: () => void) => {
     await loadImplementationForm(batch, false);
   };
 
-  /** Read-only view of completed implementation sheet */
-  const openViewImplementation = async (batch: any) => {
-    await loadImplementationForm(batch, true);
+  /** Read-only view of full batch + implementation details */
+  const openViewBatchDetails = async (batch: any) => {
+    const batchId = batch.batchId;
+
+    setDetailsLoading(true);
+    setDetailsDialogOpen(true);
+    setDetailsTarget(batch);
+
+    try {
+      const resp = await batchManagementController.getBatchById(batchId);
+      if (resp) {
+        setDetailsTarget(mergeBatchListAndDetailRows(batch, resp));
+      } else {
+        useAlertStore.getState().showAlert(S.MESSAGES.LOAD_BATCH_FAILED, "error");
+        setDetailsDialogOpen(false);
+        setDetailsTarget(null);
+      }
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const closeViewBatchDetails = () => {
+    setDetailsDialogOpen(false);
+    setDetailsTarget(null);
+    setDetailsLoading(false);
   };
 
   const openImplementationFromCreate = () => {
@@ -379,7 +406,11 @@ export const useBatchActions = (userOptions: any[], onSuccess: () => void) => {
     implForm,
     implSaving,
     openCompleteImplementation,
-    openViewImplementation,
+    openViewBatchDetails,
+    closeViewBatchDetails,
+    detailsDialogOpen,
+    detailsTarget,
+    detailsLoading,
     implViewOnly,
     setImplViewOnly,
     openImplementationFromCreate,

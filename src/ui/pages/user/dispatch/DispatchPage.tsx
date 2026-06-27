@@ -7,6 +7,7 @@ import DispatchList from "./DispatchList";
 import DispatchForm from "./DispatchForm";
 import useDispatchHook from "../../../../hooks/user/dispatch/useDispatchWorkflowHook";
 import getManufacturingTheme from "../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
+import DispatchDetailsView from "./DispatchDetailsView";
 
 const dispatchTheme = {
   palette: {
@@ -144,7 +145,7 @@ const DispatchPage = () => {
     activeBatch,
     isEditMode,
     formData,
-    loadingFormDetails,
+    // loadingFormDetails,
     schemaLoading,
     schemaError,
     actionLoading,
@@ -158,6 +159,10 @@ const DispatchPage = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleBackFromDetails,
   } = hookState;
 
   const canAct = formData.schemaFormLoaded;
@@ -177,7 +182,16 @@ const DispatchPage = () => {
       </Box>
     );
   }
-
+  if (view === "details") {
+    return (
+      <DispatchDetailsView
+        row={detailsRow}
+        data={detailsData}
+        loading={detailsLoading}
+        onBack={handleBackFromDetails}
+      />
+    );
+  }
   return (
     <Box sx={dispatchTheme.workflow.animatedContainer}>
       {activeBatch ? (
@@ -202,7 +216,7 @@ const DispatchPage = () => {
             theme={dispatchTheme}
           />
 
-          {!loadingFormDetails ? (
+          {/* {!loadingFormDetails ? (
             <DispatchForm
               batch={activeBatch}
               formData={formData}
@@ -216,9 +230,9 @@ const DispatchPage = () => {
               onFormValuesChange={handleFormValuesChange}
               theme={dispatchTheme}
             />
-          ) : null}
+          ) : null} */}
 
-          {!loadingFormDetails ? (
+          {/* {!loadingFormDetails ? (
             <>
               <Box
                 sx={{
@@ -286,7 +300,7 @@ const DispatchPage = () => {
                 onCancel={() => setSubmitConfirmOpen(false)}
               />
             </>
-          ) : null}
+          ) : null} */}
         </>
       ) : null}
 

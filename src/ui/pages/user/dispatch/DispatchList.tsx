@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, Typography, IconButton, Tooltip, Stack} from "@mui/material";
 import { icons } from "../../../../app/theme/icons";
 import IconText from "../../../components/common/IconText";
 import UserBatchList from "../../../components/custom/UserBatchList";
@@ -9,7 +9,7 @@ import { useThemeStore } from "../../../../app/store/themeStore";
 import getOperationsTheme from "../../../../app/theme/custom_themes/shared/operations_theme";
 import { getOperationStatusConfig, OPERATION_STATUS } from "../../../../hooks/operationStatus";
 import { STRINGS } from "../../../../app/config/strings";
-
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 const {
   pending: HourglassEmptyRoundedIcon,
   approved: CheckCircleRoundedIcon,
@@ -29,7 +29,7 @@ export const DISPATCH_STATUS_CONFIG = getOperationStatusConfig({
 });
 
 const S = STRINGS.DISPATCH;
-const B = STRINGS.MANUFACTURING.BATCH_LIST;
+const B = STRINGS.DISPATCH.BATCH_LIST;
 
 const DispatchList = ({ hookState, rowsPerPageOptions }: any) => {
   const mode = useThemeStore((state) => state.mode);
@@ -49,6 +49,7 @@ const DispatchList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewDispatchDetails,
   } = hookState;
 
   const statusConfig = useMemo(
@@ -61,6 +62,10 @@ const DispatchList = ({ hookState, rowsPerPageOptions }: any) => {
       ),
     [theme],
   );
+ const canViewDispatchDetails = (status: string) =>
+    status === OPERATION_STATUS.WAITING_FOR_APPROVAL ||
+    status === OPERATION_STATUS.APPROVED;
+
 
   const columns = useMemo(
     () => [
@@ -173,20 +178,40 @@ const DispatchList = ({ hookState, rowsPerPageOptions }: any) => {
       onStatusFilterChange={setStatusFilter}
       isLoading={loading}
       renderAction={(row: any) => (
-        <UserWorkflowStatusAction
-          status={row.dispatchStatus}
-          row={row}
-          statusMap={OPERATION_STATUS}
-          onFillForm={handleFillForm}
-          onEditForm={handleEditForm}
-          theme={theme}
-          fillLabel={B.FILL_ACTION}
-          continueLabel={B.CONTINUE_ACTION}
-          editLabel={S.EDIT_ACTION}
-          editTooltip={B.EDIT_ACTION_TOOLTIP}
-          waitingLabel={S.WAITING_LABEL}
-          approvedLabel={S.APPROVED_LABEL}
-        />
+        <Stack direction="row" spacing={0.75}>
+          {canViewDispatchDetails(row.dispatchStatus) ? (
+            <Tooltip
+              title={S.VIEW_DETAILS_TOOLTIP}
+              arrow
+            >
+              <IconButton
+                size="small"
+                onClick={() =>
+                  handleViewDispatchDetails(row)
+                }
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${theme.palette.primaryLight}55`,
+                  borderRadius: 1.5,
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.dispatchStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              theme={theme}
+              fillLabel={B.FILL_ACTION}
+              continueLabel={B.CONTINUE_ACTION}
+              editTooltip={B.EDIT_ACTION_TOOLTIP}
+            />
+          )}
+        </Stack>
       )}
     />
   );

@@ -4,21 +4,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   alpha,
   Box,
-  Button,
   Chip,
-  CircularProgress,
   IconButton,
-  MenuItem,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
-import FilterPanelHeader from "../../../../components/custom/FilterPanelHeader";
 import FilterToggleButton from "../../../../components/custom/FilterToggleButton";
 import UserBatchList from "../../../../components/custom/UserBatchList";
+import ManufacturingBatchListFilterPanel from "../components/ManufacturingBatchListFilterPanel";
 import UserWorkflowStatusAction from "../../../../components/custom/UserWorkflowStatusAction";
 import UserWorkflowStatusCell from "../../../../components/custom/UserWorkflowStatusCell";
 import { useThemeStore } from "../../../../../app/store/themeStore";
@@ -41,7 +37,6 @@ const {
 } = icons.user.manufacturing.rawMaterial.preparationList;
 
 const FILTER_ALL = STRINGS.USER_BATCH_LIST.FILTER_ALL;
-const PRIORITY_OPTIONS = ["Critical", "High", "Medium", "Low"] as const;
 const canViewPreparationDetails = (status: string) =>
   status === OPERATION_STATUS.WAITING_FOR_APPROVAL || status === OPERATION_STATUS.APPROVED;
 
@@ -85,18 +80,24 @@ const RawMaterialPrepList = ({ hookState, rowsPerPageOptions }: any) => {
     clearAdvancedFilters,
     activeFilterCount,
     handleViewPreparationDetails,
+    motorStageOptions,
+    motorStagesLoading,
   } = hookState;
 
   const [filterOpen, setFilterOpen] = useState(false);
-  const [draftPriority, setDraftPriority] = useState(FILTER_ALL);
+  const [draftBatchId, setDraftBatchId] = useState("");
+  const [draftBatchType, setDraftBatchType] = useState(FILTER_ALL);
+  const [draftMotorStage, setDraftMotorStage] = useState(FILTER_ALL);
   const [draftMotorId, setDraftMotorId] = useState("");
-  const [draftLotId, setDraftLotId] = useState("");
+  const [draftPriority, setDraftPriority] = useState(FILTER_ALL);
   const [draftStatus, setDraftStatus] = useState(FILTER_ALL);
 
   const syncDraftsFromApplied = useCallback(() => {
-    setDraftPriority(advancedFilters.priority || FILTER_ALL);
+    setDraftBatchId(advancedFilters.batchId);
+    setDraftBatchType(advancedFilters.batchTypes.length === 1 ? advancedFilters.batchTypes[0]! : FILTER_ALL);
+    setDraftMotorStage(advancedFilters.motorStages.length === 1 ? advancedFilters.motorStages[0]! : FILTER_ALL);
     setDraftMotorId(advancedFilters.motorIds[0] ?? "");
-    setDraftLotId(advancedFilters.lotIds[0] ?? "");
+    setDraftPriority(advancedFilters.priorities.length === 1 ? advancedFilters.priorities[0]! : FILTER_ALL);
     setDraftStatus(statusFilter);
   }, [advancedFilters, statusFilter]);
 
@@ -277,11 +278,12 @@ const RawMaterialPrepList = ({ hookState, rowsPerPageOptions }: any) => {
 
   const handleApplyPanelFilters = () => {
     const motorId = draftMotorId.trim();
-    const lotId = draftLotId.trim();
     const next: SubdepartmentBatchListAdvancedFilters & { status: string } = {
-      priority: draftPriority === FILTER_ALL ? "" : draftPriority,
+      batchId: draftBatchId.trim(),
+      batchTypes: draftBatchType === FILTER_ALL ? [] : [draftBatchType],
+      motorStages: draftMotorStage === FILTER_ALL ? [] : [draftMotorStage],
       motorIds: motorId ? [motorId] : [],
-      lotIds: lotId ? [lotId] : [],
+      priorities: draftPriority === FILTER_ALL ? [] : [draftPriority],
       status: draftStatus,
     };
     applyAdvancedFilters(next);
@@ -290,9 +292,11 @@ const RawMaterialPrepList = ({ hookState, rowsPerPageOptions }: any) => {
 
   const handleClearAllFilters = () => {
     clearAdvancedFilters();
-    setDraftPriority(FILTER_ALL);
+    setDraftBatchId("");
+    setDraftBatchType(FILTER_ALL);
+    setDraftMotorStage(FILTER_ALL);
     setDraftMotorId("");
-    setDraftLotId("");
+    setDraftPriority(FILTER_ALL);
     setDraftStatus(FILTER_ALL);
   };
 
@@ -311,96 +315,30 @@ const RawMaterialPrepList = ({ hookState, rowsPerPageOptions }: any) => {
   );
 
   const filterExtension = filterOpen ? (
-    <Stack
-      spacing={1.5}
-      sx={{
-        mt: 1.5,
-        pt: 2,
-        borderTop: `1px solid ${alpha(theme.palette.border, 0.55)}`,
-      }}
-    >
-      <FilterPanelHeader
-        title={S.BATCH_LIST.FILTERS_TITLE}
-        count={activeFilterCount}
-        onClear={handleClearAllFilters}
-        clearLabel={S.BATCH_LIST.FILTERS_CLEAR}
-        containerSx={filterPanelHeaderSx.containerSx}
-        iconSx={filterPanelHeaderSx.iconSx}
-        labelSx={filterPanelHeaderSx.labelSx}
-        badgeSx={filterPanelHeaderSx.badgeSx}
-        clearChipSx={filterPanelHeaderSx.clearChipSx}
-      />
-
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
-        <TextField
-          select
-          size="small"
-          label={S.BATCH_LIST.FILTERS_PRIORITY}
-          value={draftPriority}
-          onChange={(e) => setDraftPriority(e.target.value)}
-          sx={{ minWidth: { xs: "100%", sm: 160 } }}
-        >
-          <MenuItem value={FILTER_ALL}>{S.BATCH_LIST.FILTERS_ALL_PRIORITIES}</MenuItem>
-          {PRIORITY_OPTIONS.map((priority) => (
-            <MenuItem key={priority} value={priority}>
-              {priority}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          select
-          size="small"
-          label={S.BATCH_LIST.FILTERS_STATUS}
-          value={draftStatus}
-          onChange={(e) => setDraftStatus(e.target.value)}
-          sx={{ minWidth: { xs: "100%", sm: 200 } }}
-        >
-          {STATUS_DROPDOWN_VALUES.map((status) => (
-            <MenuItem key={status} value={status}>
-              {status === FILTER_ALL ? FILTER_ALL : (statusConfig[status]?.label ?? status)}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          size="small"
-          label={S.BATCH_LIST.FILTERS_MOTOR_ID}
-          value={draftMotorId}
-          onChange={(e) => setDraftMotorId(e.target.value)}
-          placeholder="e.g. MTR-445"
-          sx={{ minWidth: { xs: "100%", sm: 180 } }}
-        />
-
-        <TextField
-          size="small"
-          label={S.BATCH_LIST.FILTERS_LOT_ID}
-          value={draftLotId}
-          onChange={(e) => setDraftLotId(e.target.value)}
-          placeholder="e.g. LOT-2026-0001"
-          sx={{ minWidth: { xs: "100%", sm: 200 } }}
-        />
-      </Stack>
-
-      <Stack direction="row" justifyContent="flex-end" spacing={1}>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => setFilterOpen(false)}
-          sx={{ textTransform: "none", fontWeight: 700 }}
-        >
-          {S.BATCH_LIST.FILTERS_CLOSE_PANEL}
-        </Button>
-        <Button
-          variant="contained"
-          size="small"
-          onClick={handleApplyPanelFilters}
-          sx={{ ...theme.batchList.action.primary, textTransform: "none" }}
-        >
-          {S.BATCH_LIST.FILTERS_APPLY}
-        </Button>
-      </Stack>
-    </Stack>
+    <ManufacturingBatchListFilterPanel
+      theme={theme}
+      activeFilterCount={activeFilterCount}
+      draftBatchId={draftBatchId}
+      draftBatchType={draftBatchType}
+      draftMotorStage={draftMotorStage}
+      draftMotorId={draftMotorId}
+      draftPriority={draftPriority}
+      draftStatus={draftStatus}
+      statusDropdownValues={STATUS_DROPDOWN_VALUES}
+      statusConfig={statusConfig}
+      motorStageOptions={motorStageOptions}
+      motorStagesLoading={motorStagesLoading}
+      filterPanelHeaderSx={filterPanelHeaderSx}
+      onDraftBatchIdChange={setDraftBatchId}
+      onDraftBatchTypeChange={setDraftBatchType}
+      onDraftMotorStageChange={setDraftMotorStage}
+      onDraftMotorIdChange={setDraftMotorId}
+      onDraftPriorityChange={setDraftPriority}
+      onDraftStatusChange={setDraftStatus}
+      onApply={handleApplyPanelFilters}
+      onClear={handleClearAllFilters}
+      onClose={() => setFilterOpen(false)}
+    />
   ) : null;
 
   return (
@@ -430,7 +368,7 @@ const RawMaterialPrepList = ({ hookState, rowsPerPageOptions }: any) => {
       searchBarEnd={searchBarEnd}
       filterExtension={filterExtension}
       renderAction={(row: any) => (
-        <Stack direction="row" alignItems="center" spacing={0.75}>
+        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.75}>
           {canViewPreparationDetails(row.rmStatus) ? (
             <Tooltip title={S.RAW_MATERIAL_PREP.VIEW_DETAILS_TOOLTIP} arrow placement="top">
               <IconButton

@@ -1,7 +1,8 @@
 // src/ui/pages/user/quality_control/qc_division/QCDivisionList.jsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { Chip, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -53,6 +54,7 @@ const QCDivisionList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewDetails,
   } = hookState;
 
   const statusConfig = useMemo(
@@ -149,19 +151,44 @@ const QCDivisionList = ({ hookState, rowsPerPageOptions }: any) => {
     onSearchChange={setSearch}
     onStatusFilterChange={setStatusFilter}
     isLoading={loading}
-    renderAction={(row: any) => (
-      <UserWorkflowStatusAction
-        status={row.qcStatus}
-        row={row}
-        statusMap={OPERATION_STATUS}
-        onFillForm={handleFillForm}
-        onEditForm={handleEditForm}
-        theme={theme}
-        fillLabel={S.BATCH_LIST.FILL_ACTION}
-        continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
-        editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
-      />
-    )}
+    renderAction={(row: any) => {
+      const canView =
+        row.qcStatus === OPERATION_STATUS.WAITING_FOR_APPROVAL ||
+        row.qcStatus === OPERATION_STATUS.APPROVED;
+      return (
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          {row.qcStatus !== OPERATION_STATUS.WAITING_FOR_APPROVAL && row.qcStatus !== OPERATION_STATUS.APPROVED ? (
+            <UserWorkflowStatusAction
+              status={row.qcStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              theme={theme}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+            />
+          ) : null}
+          {canView ? (
+            <Tooltip title={S.BATCH_LIST.VIEW_DETAILS_TOOLTIP} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={() => handleViewDetails(row)}
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${(theme as any).palette?.border ?? "#ddd"}`,
+                  borderRadius: 1.5,
+                  "&:hover": { background: "rgba(27,79,114,0.08)" },
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+        </Stack>
+      );
+    }}
   />
   );
 };

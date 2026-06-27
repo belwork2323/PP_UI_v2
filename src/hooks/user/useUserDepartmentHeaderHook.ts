@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "../../app/store/authStore";
+import { useUserBatchRefreshStore } from "../../app/store/userBatchRefreshStore";
 import { getUserSubDepartmentDashboardStats } from "../../controllers/user/userController";
 import { UserSubDepartmentDashboardStatsModel, UserSubDepartmentDashboardStats } from "../../data/models/user/UserSubDepartmentDashboardStatsModel";
 
@@ -10,6 +11,7 @@ type UseUserDepartmentHeaderHookArgs = {
 
 export const useUserDepartmentHeaderHook = ({ deptSlug, subDeptSlug }: UseUserDepartmentHeaderHookArgs) => {
   const user = useAuthStore((state) => state.user);
+  const refreshVersion = useUserBatchRefreshStore((state) => state.version);
   const [stats, setStats] = useState<UserSubDepartmentDashboardStats>(UserSubDepartmentDashboardStatsModel.empty());
 
   const userName = user?.username || String(user?.userId || "User");
@@ -43,7 +45,7 @@ export const useUserDepartmentHeaderHook = ({ deptSlug, subDeptSlug }: UseUserDe
     return () => {
       cancelled = true;
     };
-  }, [selectedSubDepartment?.subDepartmentId]);
+  }, [selectedSubDepartment?.subDepartmentId, refreshVersion]);
 
   return {
     userName,

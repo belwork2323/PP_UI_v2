@@ -1,4 +1,5 @@
 import type { SchemaBlock, SchemaSection, SchemaVisibleWhen } from "../types";
+import { scopedFormKey } from "../state/formState";
 
 export type SchemaVisibilityTarget = {
   visibleWhen?: SchemaVisibleWhen;
@@ -18,6 +19,10 @@ export const buildFlatVisibilityContext = (
     if (key.startsWith("_")) return;
     if (Array.isArray(val) || (val && typeof val === "object")) return;
     merged[key] = val ?? "";
+    const sep = key.indexOf("::");
+    if (sep >= 0) {
+      merged[key.slice(sep + 2)] = val ?? "";
+    }
   };
 
   const walk = (val: unknown) => {
@@ -117,18 +122,24 @@ export const pruneHiddenFormValues = (
   const context = buildFlatVisibilityContext(values);
   const next = { ...values };
 
-  const clearBlock = (block: SchemaBlock) => {
+  const clearBlock = (block: SchemaBlock, scope: string) => {
     if (!isBlockVisible(block, context)) {
-      if (block.type === "field") next[block.id] = "";
+      if (block.type === "field") next[scopedFormKey(scope, block.id)] = "";
     }
-    if (block.type === "section" || block.type === "group") {
-      block.children.forEach(clearBlock);
+    if (block.type === "section") {
+      if (block.repeat) return;
+      block.children.forEach((child) => clearBlock(child, block.id));
+      return;
+    }
+    if (block.type === "group") {
+      if (block.repeat) return;
+      block.children.forEach((child) => clearBlock(child, scope));
     }
   };
 
   sections.forEach((section) => {
     if (!isSectionVisible(section, context)) return;
-    section.children.forEach(clearBlock);
+    section.children.forEach((block) => clearBlock(block, section.id));
   });
 
   return next;

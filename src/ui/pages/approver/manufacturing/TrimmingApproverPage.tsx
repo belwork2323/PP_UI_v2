@@ -394,7 +394,6 @@ const TrimmingApproverPage = () => {
       statusMeta={TR_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
         { field: "motorStage", label: "Stage", options: ["S0", "S1", "S2", "S3"] },
       ]}
     >
@@ -410,7 +409,6 @@ const TrimmingApproverPage = () => {
                     <TH>Motor Stage</TH>
                     <TH>Submitted By</TH>
                     <TH>Created On</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -442,9 +440,6 @@ const TrimmingApproverPage = () => {
                               year: "numeric",
                             })
                           : "—"}
-                      </TD>
-                      <TD>
-                        <PriorityChip priority={row.priority} />
                       </TD>
                       <TD>
                         <StatusChip status={row.status} />

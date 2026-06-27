@@ -9,6 +9,7 @@ import {
   fetchMaterialLotsApi,
 } from "../../data/api/users/operationsApi";
 import { ApiResponseModel } from "../../data/models/common/ApiResponseModel";
+import { normalizeListStatusFilter } from "../../hooks/operationStatus";
 import {
   normalizeMaterialsListResponse,
   type MaterialsListItem,
@@ -48,7 +49,10 @@ export const operationsController = {
    */
   fetchSubdepartmentBatches: async (payload: SubdepartmentBatchListRequest) => {
     try {
-      const response = await fetchSubdepartmentBatchesApi(payload);
+      const response = await fetchSubdepartmentBatchesApi({
+        ...payload,
+        ...(payload.status ? { status: normalizeListStatusFilter(payload.status) } : {}),
+      });
       return new ApiResponseModel(response);
     } catch (error) {
       console.error("Failed to fetch subdepartment batches:", error);

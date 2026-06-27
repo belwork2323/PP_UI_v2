@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import {
   Box, Stack, Typography, Chip, alpha, Card, Button, Dialog,
   DialogContent, IconButton, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Divider,
+  TableContainer, TableHead, TableRow, Divider,CircularProgress
 } from "@mui/material";
 import { styled, keyframes } from "@mui/material/styles";
 
@@ -14,7 +14,7 @@ import ApproverActionDialog from "../../../components/custom/ApproverActionDialo
 import { icons } from "../../../../app/theme/icons";
 import { APPROVER_PRIORITY_META, APPROVER_STATUS_META, isApproverActionableStatus } from "../../../../app/theme/approver";
 import useApproverFormAction from "../../../../hooks/approver/useApproverFormAction";
-
+import { fetchDispatchFormDetailsApi } from "../../../../data/api/users/dispatch/dispatchAPI";
 const {
   approved: CheckCircleRoundedIcon,
   rejected: CancelRoundedIcon,
@@ -51,75 +51,6 @@ export const DISPATCH_STATUS_META = APPROVER_STATUS_META;
 
 const PRIORITY_META = APPROVER_PRIORITY_META;
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-const MOCK_DISPATCH_SUBMISSIONS = [
-  {
-    id: 1,
-    dispatchId:    "DSP-2025-047",
-    motorIds:      ["MFG-SRM-2025-210", "MFG-SRM-2025-211"],
-    destination:   "ISRO, Sriharikota",
-    consignee:     "LPSC Vehicle Integration Division",
-    transportMode: "Road — Secured Heavy Vehicle",
-    vehicleNo:     "KA-19-B-4421",
-    driverName:    "Ramesh Nair",
-    crateCount:    2,
-    totalWeight:   "1 214.6 kg",
-    documents: {
-      testCert:        "TC-2025-0210",
-      qualClearance:   "QC-CLR-2025-0210",
-      transportPermit: "TP-KA-2025-0871",
-    },
-    remarks:       "Handle with care — live propellant motor",
-    submittedBy:   "suresh.babu",
-    createdOn:     "2025-03-13T07:30:00",
-    status:        "Pending",
-    priority:      "Critical",
-  },
-  {
-    id: 2,
-    dispatchId:    "DSP-2025-044",
-    motorIds:      ["MFG-SRM-2025-205"],
-    destination:   "DRDL, Hyderabad",
-    consignee:     "Advanced Systems Laboratory",
-    transportMode: "Road — Armoured Escort",
-    vehicleNo:     "TS-09-F-7734",
-    driverName:    "Mohammed Saleem",
-    crateCount:    1,
-    totalWeight:   "608.3 kg",
-    documents: {
-      testCert:        "TC-2025-0205",
-      qualClearance:   "QC-CLR-2025-0205",
-      transportPermit: "TP-TS-2025-0622",
-    },
-    remarks:       "Cleared all QC stages",
-    submittedBy:   "kavitha.raman",
-    createdOn:     "2025-03-11T09:00:00",
-    status:        "Approved",
-    priority:      "High",
-  },
-  {
-    id: 3,
-    dispatchId:    "DSP-2025-039",
-    motorIds:      ["MFG-SRM-2025-199", "MFG-SRM-2025-200", "MFG-SRM-2025-201"],
-    destination:   "BDL, Vishakhapatnam",
-    consignee:     "Naval Systems Division",
-    transportMode: "Road — Secured Heavy Vehicle",
-    vehicleNo:     "AP-31-C-2290",
-    driverName:    "Venkat Rao",
-    crateCount:    3,
-    totalWeight:   "1 826.0 kg",
-    documents: {
-      testCert:        "TC-2025-0199",
-      qualClearance:   "QC-CLR-2025-0199",
-      transportPermit: "TP-AP-2025-0541",
-    },
-    remarks:       "Re-check NDT reports before dispatch",
-    submittedBy:   "harish.babu",
-    createdOn:     "2025-03-08T13:00:00",
-    status:        "Rejected",
-    priority:      "Medium",
-  },
-];
 
 // ─── Styled ───────────────────────────────────────────────────────────────────
 const TH = styled(TableCell)({
@@ -295,11 +226,89 @@ const DocumentsTable = ({ docs }) => (
     </TableContainer>
   </SubCard>
 );
+const KeyValueTable = ({ data }) => {
+  if (!data) return null;
 
+  return (
+    <SubCard>
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <DTH width="40%">Field</DTH>
+              <DTH>Value</DTH>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {Object.entries(data).map(([key, value], index) => (
+              <TableRow key={key}>
+                <DTD sx={{ fontWeight: 700 }}>
+                  {key.replace(/([A-Z])/g, " $1")}
+                </DTD>
+
+                <DTD>
+                  {typeof value === "object"
+                    ? JSON.stringify(value)
+                    : String(value ?? "-")}
+                </DTD>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </SubCard>
+  );
+};
+
+const DynamicArrayTable = ({ rows }) => {
+  if (!rows?.length) return null;
+
+  const columns = Object.keys(rows[0]);
+
+  return (
+    <SubCard>
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              {columns.map((column) => (
+                <DTH key={column}>
+                  {column.replace(/([A-Z])/g, " $1")}
+                </DTH>
+              ))}
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={index}>
+                {columns.map((column) => (
+                  <DTD key={column}>
+                    {typeof row[column] === "object"
+                      ? JSON.stringify(row[column])
+                      : String(row[column] ?? "-")}
+                  </DTD>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </SubCard>
+  );
+};
 // ─── Detail dialog ────────────────────────────────────────────────────────────
-const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
+const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject, detailsLoading, detailData,}) => {
   const [pdfOpen, setPdfOpen] = useState(false);
   if (!item) return null;
+  const detail = detailData ?? item;
+
+  const motor = detail?.motors?.[0];
+
+  const dispatch =
+    motor?.details?.dispatchDetails ||
+    motor?.dispatchDetails;
 
   const today = new Date().toLocaleDateString("en-IN", {
     day: "2-digit", month: "short", year: "numeric",
@@ -334,13 +343,13 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
                 Dispatch Request
               </Typography>
               <Typography sx={{ color: alpha("#fff", 0.7), fontSize: "0.72rem" }}>
-                {item.dispatchId} · {item.motorIds?.length} motor{item.motorIds?.length !== 1 ? "s" : ""} · {item.destination}
+                {detail?.batchId} · {(detail?.motors?.length || 0)} Motor(s)
               </Typography>
             </Box>
           </Stack>
 
           <Stack direction="row" gap={1} alignItems="center">
-            <PriorityChip priority={item.priority} />
+            <StatusChip status={detail?.status} />
             <Button
               size="small" variant="contained"
               startIcon={<PictureAsPdfRoundedIcon sx={{ fontSize: "14px !important" }} />}
@@ -369,12 +378,32 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
         }}>
           <Stack direction="row" gap={2} flexWrap="wrap" alignItems="center">
             {[
-              { label: "Dispatch ID",  value: item.dispatchId  },
-              { label: "Submitted By", value: item.submittedBy },
-              { label: "Date",         value: new Date(item.createdOn).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
-              { label: "Crates",       value: `${item.crateCount} crate${item.crateCount !== 1 ? "s" : ""}` },
-              { label: "Total Weight", value: item.totalWeight  },
-              { label: "Priority",     value: item.priority    },
+              {
+                label: "Form ID",
+                value: detail?.formId,
+              },
+              {
+                label: "Batch ID",
+                value: detail?.batchId,
+              },
+              {
+                label: "Created By",
+                value: detail?.createdBy?.fullName,
+              },
+              {
+                label: "Status",
+                value: detail?.status,
+              },
+              {
+                label: "Submission Type",
+                value: detail?.formSubmissionType,
+              },
+              {
+                label: "Date",
+                value: detail?.createdAt
+                  ? new Date(detail.createdAt).toLocaleDateString("en-IN")
+                  : "-",
+              },
             ].map(({ label, value }) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: "0.62rem", fontWeight: 700, color: BRAND.textSub, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -389,12 +418,17 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
 
           {/* Motor ID chips */}
           <Stack direction="row" gap={0.75} flexWrap="wrap" mt={1}>
-            {item.motorIds?.map((mid) => (
+            {detail?.motors?.map((motor) => (
               <Chip
-                key={mid} label={mid} size="small"
+                key={motor.motorId}
+                label={motor.motorId}
+                size="small"
                 sx={{
-                  height: 20, fontSize: "0.65rem", fontWeight: 700,
-                  background: alpha(BRAND.qc, 0.08), color: BRAND.qc,
+                  height: 20,
+                  fontSize: "0.65rem",
+                  fontWeight: 700,
+                  background: alpha(BRAND.qc, 0.08),
+                  color: BRAND.qc,
                   border: `1px solid ${alpha(BRAND.qc, 0.2)}`,
                 }}
               />
@@ -403,13 +437,127 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
         </Box>
 
         {/* Content */}
-        <DialogContent sx={{ p: 2.8, overflowY: "auto", background: BRAND.surface }}>
-          <SectionDivider icon={LocalShippingRoundedIcon} label="Dispatch Details" />
-          <DispatchDetailTable item={item} />
+        <DialogContent
+            sx={{
+              p: 2.8,
+              overflowY: "auto",
+              background: BRAND.surface,
+            }}
+          >
+            {detailsLoading ? (
+              <Typography>Loading...</Typography>
+            ) : (
+              <>
+                <SectionDivider
+                  icon={LocalShippingRoundedIcon}
+                  label="Basic Dispatch Details"
+                />
 
-          <SectionDivider icon={DescriptionRoundedIcon} label="Accompanying Documents" />
-          <DocumentsTable docs={item.documents} />
-        </DialogContent>
+                <KeyValueTable
+                  data={{
+                    projectName: dispatch?.projectName,
+                    stage: dispatch?.stage,
+                    castingDate: dispatch?.castingDate,
+                    dispatchDate: dispatch?.dispatchDate,
+                    dispatchLocation: dispatch?.dispatchLocation,
+                  }}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="NDT Clearance"
+                />
+
+                <KeyValueTable
+                  data={dispatch?.ndtClearance}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="Final Acceptance Committee Clearance"
+                />
+
+                <KeyValueTable
+                  data={dispatch?.finalAcceptanceCommitteeClearance}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="Safety Clearance"
+                />
+
+                <KeyValueTable
+                  data={dispatch?.safetyClearance}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="Dispatch Team"
+                />
+
+                <KeyValueTable
+                  data={dispatch?.dispatchTeam}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="Waiver Details"
+                />
+
+                <KeyValueTable
+                  data={dispatch?.waiverDetails}
+                />
+
+                <SectionDivider
+                  icon={InventoryRoundedIcon}
+                  label="Propellant Properties"
+                />
+
+                <DynamicArrayTable
+                  rows={dispatch?.propellantProperties}
+                />
+
+                <SectionDivider
+                  icon={InventoryRoundedIcon}
+                  label="Rocket Motor Inspection"
+                />
+
+                <DynamicArrayTable
+                  rows={dispatch?.rocketMotorInspection}
+                />
+
+                <SectionDivider
+                  icon={DirectionsCarRoundedIcon}
+                  label="Vehicle Details"
+                />
+
+                <DynamicArrayTable
+                  rows={dispatch?.vehicleDetails}
+                />
+
+                <SectionDivider
+                  icon={InventoryRoundedIcon}
+                  label="Rocket Motor Packing Details"
+                />
+
+                <DynamicArrayTable
+                  rows={dispatch?.rocketMotorPackingDetails}
+                />
+
+                <SectionDivider
+                  icon={DescriptionRoundedIcon}
+                  label="Dispatch Photos"
+                />
+
+                <KeyValueTable
+                  data={{
+                    photos:
+                      dispatch?.uploadDispatchPhotos?.join(", "),
+                  }}
+                />
+              </>
+            )}
+          </DialogContent>
 
         {/* Footer */}
         <Box sx={{
@@ -447,7 +595,7 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
         formId={item.formId}
         department="dispatch"
         subDepartment="dispatch"
-        dialogTitle={`Dispatch Report — ${item.dispatchId}`}
+        dialogTitle={`Dispatch Report — ${detail?.batchId || item?.batchId}`}
       />
     </>
   );
@@ -455,15 +603,36 @@ const DispatchDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const DispatchApproverPage = () => {
-  const [items,    setItems]    = useState(MOCK_DISPATCH_SUBMISSIONS);
+  const [items,    setItems]    = useState([]);
   const [selected, setSelected] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailData, setDetailData] = useState(null);
   const { dialogProps, requestApprove, requestReject } = useApproverFormAction({
     department: "dispatch",
     setItems,
     setSelected,
     subDepartment: "dispatch",
   });
+  const handleViewDetails = async (row) => {
+  setSelected(row);
+  setDetailData(null);
+  setDetailsLoading(true);
 
+  try {
+    const response = await fetchDispatchFormDetailsApi({
+      formId: row.formId,
+    });
+
+    if (response?.data) {
+      setDetailData(response.data);
+    }
+  } catch (error) {
+    console.error(error);
+    setDetailData(null);
+  } finally {
+    setDetailsLoading(false);
+  }
+};
   return (
     <ApproverList
       department="dispatch"
@@ -472,9 +641,6 @@ const DispatchApproverPage = () => {
       statusField="status"
       statusMeta={DISPATCH_STATUS_META}
       searchKeys={["dispatchId", "destination", "consignee", "submittedBy", "vehicleNo"]}
-      filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
-      ]}
     >
       {(filtered) => (
         <>
@@ -498,7 +664,6 @@ const DispatchApproverPage = () => {
                     <TH>Crates</TH>
                     <TH>Total Weight</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -517,7 +682,7 @@ const DispatchApproverPage = () => {
                       {/* Dispatch ID */}
                       <TD>
                         <Typography sx={{ fontWeight: 800, fontSize: "0.82rem", color: BRAND.qc }}>
-                          {row.dispatchId}
+                          {row.batchId}
                         </Typography>
                       </TD>
 
@@ -582,7 +747,6 @@ const DispatchApproverPage = () => {
                         })}
                       </TD>
 
-                      <TD><PriorityChip priority={row.priority} /></TD>
                       <TD><StatusChip   status={row.status}    /></TD>
 
                       <TD sx={{ textAlign: "center" }}>
@@ -590,7 +754,7 @@ const DispatchApproverPage = () => {
                           size="small"
                           variant="outlined"
                           startIcon={<VisibilityRoundedIcon sx={{ fontSize: "13px !important" }} />}
-                          onClick={() => setSelected(row)}
+                          onClick={() => handleViewDetails(row)}
                           disabled={!isApproverActionableStatus(row.status)}
                           sx={{
                             borderRadius: 2, fontWeight: 700, fontSize: "0.72rem",
@@ -614,10 +778,15 @@ const DispatchApproverPage = () => {
 
           <DispatchDetailDialog
             open={!!selected}
-            onClose={() => setSelected(null)}
+            onClose={() => {
+              setSelected(null);
+              setDetailData(null);
+            }}
             item={selected}
             onApprove={requestApprove}
             onReject={requestReject}
+            detailsLoading={detailsLoading}
+            detailData={detailData}
           />
 
           <ApproverActionDialog {...dialogProps} />

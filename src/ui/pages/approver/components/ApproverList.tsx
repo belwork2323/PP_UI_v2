@@ -21,12 +21,18 @@ export type ApproverListProps<T> = {
   emptyIcon?: ElementType;
   emptySubtitle?: string;
   emptyTitle?: string;
+  filterExtension?: ReactNode;
+  activeStatusOverride?: string;
   filterFields?: ApproverFilterField[];
   items?: T[];
+  listFilters?: Record<string, string>;
+  onActiveStatusChange?: (status: string) => void;
+  searchBarEnd?: ReactNode;
   searchKeys?: string[];
   searchPlaceholder?: string;
   statusField?: string;
   statusMeta?: ApproverStatusMeta;
+  statusTabsOverride?: string[];
   subDepartment?: string;
 };
 
@@ -38,6 +44,10 @@ const DEFAULT_ICONS: Record<ApproverDepartmentKey, ElementType> = {
 };
 
 const allLabel = STRINGS.APPROVER.COMMON.STATUS_ALL;
+const EMPTY_FILTER_FIELDS: ApproverFilterField[] = [];
+const EMPTY_LIST_FILTERS: Record<string, string> = {};
+const EMPTY_SEARCH_KEYS: string[] = [];
+const EMPTY_ITEMS: Record<string, unknown>[] = [];
 
 const ApproverList = <T extends Record<string, unknown>,>({
   children,
@@ -45,23 +55,29 @@ const ApproverList = <T extends Record<string, unknown>,>({
   emptyIcon,
   emptySubtitle = STRINGS.APPROVER.LIST.EMPTY_SUBTITLE,
   emptyTitle = STRINGS.APPROVER.LIST.EMPTY_TITLE,
-  filterFields = [],
-  items = [],
-  searchKeys = [],
+  filterExtension,
+  activeStatusOverride,
+  filterFields = EMPTY_FILTER_FIELDS,
+  items = EMPTY_ITEMS as T[],
+  listFilters = EMPTY_LIST_FILTERS,
+  onActiveStatusChange,
+  searchBarEnd,
+  searchKeys = EMPTY_SEARCH_KEYS,
   searchPlaceholder,
   statusField = "status",
   statusMeta = {},
+  statusTabsOverride,
   subDepartment,
 }: ApproverListProps<T>) => {
   const brand = getApproverBrand(department);
   const listTheme = useMemo(() => getApproverListTheme(brand), [brand]);
   const EmptyIcon = emptyIcon ?? DEFAULT_ICONS[department];
   const {
-    activeStatus,
+    activeStatus: internalActiveStatus,
     counts,
     filters,
     searchText,
-    setActiveStatus,
+    setActiveStatus: setInternalActiveStatus,
     setFilters,
     setSearchText,
     statusTabs,
@@ -72,18 +88,26 @@ const ApproverList = <T extends Record<string, unknown>,>({
     searchKeys,
     statusField,
   });
+  const activeStatus = activeStatusOverride ?? internalActiveStatus;
+  const handleStatusChange = onActiveStatusChange ?? setInternalActiveStatus;
+  const mergedExtraFilters = useMemo(
+    () => ({
+      ...filters,
+      ...listFilters,
+    }),
+    [filters, listFilters],
+  );
   const { items: resolvedItems, loading, page, pagination, setPage, statusCounts } =
     useApproverSubDepartmentBatchList<T>({
       allLabel,
       department,
-      extraFilters: filters,
+      extraFilters: mergedExtraFilters,
       items,
       searchText,
       status: activeStatus,
       subDepartment,
     });
 
-  const localOnlyFilterFields = filterFields.filter(({ field }) => field !== "priority");
   const filteredItems = useMemo(() => {
     if (!subDepartment) {
       return items.filter((item) => {
@@ -135,7 +159,7 @@ const ApproverList = <T extends Record<string, unknown>,>({
     }
 
     return resolvedItems.filter((item) =>
-      localOnlyFilterFields.every(({ field }) => {
+      filterFields.every(({ field }) => {
         const selectedValue = filters[field];
 
         if (!selectedValue || selectedValue === allLabel) {
@@ -153,15 +177,19 @@ const ApproverList = <T extends Record<string, unknown>,>({
         return String(value ?? "") === selectedValue;
       }),
     );
-  }, [activeStatus, allLabel, filterFields, filters, items, localOnlyFilterFields, resolvedItems, searchKeys, searchText, statusField, subDepartment]);
+  }, [activeStatus, allLabel, filterFields, filters, items, resolvedItems, searchKeys, searchText, statusField, subDepartment]);
 
   const displayStatusTabs = useMemo(() => {
+    if (statusTabsOverride?.length) {
+      return statusTabsOverride;
+    }
+
     if (!subDepartment) {
       return statusTabs;
     }
 
     return [allLabel, ...APPROVER_BATCH_STATUS_TABS];
-  }, [allLabel, statusTabs, subDepartment]);
+  }, [allLabel, statusTabs, statusTabsOverride, subDepartment]);
 
   const resolvedSearchPlaceholder =
     searchPlaceholder ?? STRINGS.APPROVER.LIST.SEARCH_PLACEHOLDER(searchKeys);
@@ -179,6 +207,7 @@ const ApproverList = <T extends Record<string, unknown>,>({
       emptyIcon={EmptyIcon}
       emptySubtitle={emptySubtitle}
       emptyTitle={emptyTitle}
+      filterExtension={filterExtension}
       filterFields={shellFilterFields}
       filterValues={filters}
       hasItems={filteredItems.length > 0}
@@ -190,9 +219,10 @@ const ApproverList = <T extends Record<string, unknown>,>({
         }))
       }
       onSearchChange={setSearchText}
-      onStatusChange={setActiveStatus}
+      onStatusChange={handleStatusChange}
       resultIcon={EmptyIcon}
       resultText={STRINGS.APPROVER.LIST.RESULTS(filteredItems.length)}
+      searchBarEnd={searchBarEnd}
       searchPlaceholder={resolvedSearchPlaceholder}
       searchValue={searchText}
       statusCounts={displayCounts}

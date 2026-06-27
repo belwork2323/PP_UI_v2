@@ -4,6 +4,7 @@ import ConfirmAlertDialog from "../../../../components/common/ConfirmAlertDialog
 import UserWorkflowFormHeader from "../../../../components/custom/UserWorkflowFormHeader";
 import STFList from "./StaticTestFacilityList";
 import STFForm from "./StaticTestFacilityForm";
+import STFDetailsView from "./StaticTestFacilityDetailsView";
 import { useThemeStore } from "../../../../../app/store/themeStore";
 import getQualityControlTheme from "../../../../../app/theme/custom_themes/user/qualityControl/qualityControl_theme";
 import getManufacturingTheme from "../../../../../app/theme/custom_themes/user/manufacturing/manufacturing_theme";
@@ -42,6 +43,10 @@ const STFPage = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleBackFromDetails,
   } = hookState;
 
   const canAct = formData.schemaFormLoaded;
@@ -59,6 +64,12 @@ const STFPage = () => {
       <Box sx={theme.workflow.animatedContainer}>
         <STFList hookState={hookState} />
       </Box>
+    );
+  }
+
+  if (view === "details" && detailsRow) {
+    return (
+      <STFDetailsView row={detailsRow} data={detailsData} loading={detailsLoading} onBack={handleBackFromDetails} />
     );
   }
 

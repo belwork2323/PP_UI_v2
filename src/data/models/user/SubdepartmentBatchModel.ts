@@ -1,19 +1,109 @@
 import { STRINGS } from "../../../app/config/strings";
-import { OPERATION_STATUS, type OperationStatus } from "../../../hooks/operationStatus";
+import {
+  OPERATION_STATUS,
+  toOperationStatusApiValue,
+  type OperationStatus,
+} from "../../../hooks/operationStatus";
+import { motorStageForApi, normalizeMotorStage } from "../admin/BatchManagementModel";
 
 const FILTER_ALL = STRINGS.USER_BATCH_LIST.FILTER_ALL;
 const OPERATION_STATUS_VALUES = Object.values(OPERATION_STATUS) as OperationStatus[];
 
 export type SubdepartmentBatchListAdvancedFilters = {
-  priority: string;
+  batchId: string;
+  batchTypes: string[];
+  motorStages: string[];
   motorIds: string[];
-  lotIds: string[];
+  priorities: string[];
+};
+
+export const MANUFACTURING_BATCH_TYPE_OPTIONS = ["MAIN", "SUBSCALE"] as const;
+export const MANUFACTURING_PRIORITY_OPTIONS = ["Critical", "High", "Medium", "Low"] as const;
+
+export const normalizeBatchTypeCode = (raw: string | undefined | null): string => {
+  const s = String(raw ?? "").trim().toUpperCase();
+  if (!s) return "";
+  if (s === "MAIN" || s.includes("MAIN")) return "MAIN";
+  if (s === "SUBSCALE" || s.includes("SUBSCALE") || s.includes("SUB")) return "SUBSCALE";
+  return s;
+};
+
+/** Map UI filter codes to batch-list API request values */
+export const batchTypeFilterToApiValue = (code: string): string => normalizeBatchTypeCode(code);
+
+/** @deprecated Response labels — use batchTypeFilterToApiValue for request filters */
+export const batchTypeFilterToApiLabel = (code: string): string => {
+  const normalized = normalizeBatchTypeCode(code);
+  if (normalized === "MAIN") return "Main Batch";
+  if (normalized === "SUBSCALE") return "Subscale Batch";
+  return code.trim();
+};
+
+export const hasSubdepartmentBatchAdvancedFilters = (
+  filters: SubdepartmentBatchListAdvancedFilters,
+): boolean =>
+  Boolean(
+    filters.batchId?.trim() ||
+      filters.batchTypes.length > 0 ||
+      filters.motorStages.length > 0 ||
+      filters.motorIds.length > 0 ||
+      filters.priorities.length > 0,
+  );
+
+export const subdepartmentBatchMatchesAdvancedFilters = (
+  batch: Record<string, unknown>,
+  filters: SubdepartmentBatchListAdvancedFilters,
+): boolean => {
+  if (filters.batchId?.trim()) {
+    const query = filters.batchId.trim().toLowerCase();
+    const batchId = String(batch.batchId ?? "").toLowerCase();
+    if (!batchId.includes(query)) return false;
+  }
+
+  if (filters.batchTypes.length > 0) {
+    const rowCode = normalizeBatchTypeCode(String(batch.batchType ?? ""));
+    const matches = filters.batchTypes.some((type) => normalizeBatchTypeCode(type) === rowCode);
+    if (!matches) return false;
+  }
+
+  if (filters.motorStages.length > 0) {
+    const rowStage = normalizeMotorStage(batch.motorStage ?? batch.motorType);
+    const matches = filters.motorStages.some(
+      (stage) => String(normalizeMotorStage(stage)) === String(rowStage),
+    );
+    if (!matches) return false;
+  }
+
+  if (filters.motorIds.length > 0) {
+    const rowMotorIds = Array.isArray(batch.motorIds)
+      ? batch.motorIds.map((id) => String(id).trim().toLowerCase())
+      : [];
+    const rowMotorId = String(batch.motorId ?? "").trim().toLowerCase();
+    const matches = filters.motorIds.some((id) => {
+      const query = id.trim().toLowerCase();
+      if (!query) return false;
+      return rowMotorIds.some((value) => value.includes(query)) || rowMotorId.includes(query);
+    });
+    if (!matches) return false;
+  }
+
+  if (filters.priorities.length > 0) {
+    const rowPriority = String(batch.priority ?? "").trim();
+    const matches = filters.priorities.some(
+      (priority) => priority.trim().toLowerCase() === rowPriority.toLowerCase(),
+    );
+    if (!matches) return false;
+  }
+
+  return true;
 };
 
 export const emptySubdepartmentBatchAdvancedFilters = (): SubdepartmentBatchListAdvancedFilters => ({
-  priority: "",
+  batchId: "",
+  batchTypes: [],
+  motorStages: [],
   motorIds: [],
-  lotIds: [],
+  priorities: [],
 });
 
 export const SUBDEPARTMENT_BATCH_SEARCH_FIELDS = [
@@ -53,10 +143,12 @@ export type SubdepartmentBatchListRequest = {
   page: number;
   limit: number;
   status?: string[];
-  priority?: string[];
   search?: string;
   motorIds?: string[];
-  lotIds?: string[];
+  batchIds?: string[];
+  batchTypes?: string[];
+  motorStages?: number[];
+  priority?: string[];
 };
 
 /** Per route slug → row status field used by list components */
@@ -347,11 +439,10 @@ export function buildSubdepartmentBatchListPayload({
   };
 
   if (statusFilter && statusFilter !== FILTER_ALL) {
-    payload.status = [statusFilter];
-  }
-
-  if (advanced.priority?.trim()) {
-    payload.priority = [advanced.priority.trim()];
+    const apiStatus = toOperationStatusApiValue(statusFilter, FILTER_ALL);
+    if (apiStatus) {
+      payload.status = [apiStatus];
+    }
   }
 
   const trimmedSearch = search?.trim();
@@ -360,11 +451,28 @@ export function buildSubdepartmentBatchListPayload({
   }
 
   if (advanced.motorIds.length > 0) {
-    payload.motorIds = advanced.motorIds;
+    payload.motorIds = advanced.motorIds.map((id) => id.trim()).filter(Boolean);
   }
 
-  if (advanced.lotIds.length > 0) {
-    payload.lotIds = advanced.lotIds;
+  const batchId = advanced.batchId?.trim();
+  if (batchId) {
+    payload.batchIds = [batchId];
+  }
+
+  if (advanced.batchTypes.length > 0) {
+    payload.batchTypes = advanced.batchTypes
+      .map(batchTypeFilterToApiValue)
+      .filter(Boolean);
+  }
+
+  if (advanced.motorStages.length > 0) {
+    payload.motorStages = advanced.motorStages
+      .map((stage) => motorStageForApi(stage))
+      .filter((stage): stage is number => typeof stage === "number");
+  }
+
+  if (advanced.priorities.length > 0) {
+    payload.priority = advanced.priorities;
   }
 
   return payload;

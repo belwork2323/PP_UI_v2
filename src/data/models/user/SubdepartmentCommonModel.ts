@@ -93,9 +93,19 @@ export class MotorsStageListModel {
   }
 
   static fromApi(apiResponse: any): MotorsStageListModel {
-    const raw = Array.isArray(apiResponse?.data) ? apiResponse.data : [];
+    const envelope = apiResponse?.data;
+    let raw: unknown[] = [];
+
+    if (Array.isArray(envelope)) {
+      raw = envelope;
+    } else if (envelope && typeof envelope === "object" && Array.isArray((envelope as { stages?: unknown[] }).stages)) {
+      raw = (envelope as { stages: unknown[] }).stages;
+    } else if (Array.isArray(apiResponse?.stages)) {
+      raw = apiResponse.stages;
+    }
+
     return new MotorsStageListModel(
-      raw.map((item: any, index: number) => new MotorStageListItemModel(item, index))
+      raw.map((item, index) => new MotorStageListItemModel(item, index)),
     );
   }
 }

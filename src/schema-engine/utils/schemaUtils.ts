@@ -89,15 +89,15 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
     ? normalizeApiSchemaSections(rawSections)
     : (rawSections as SchemaSection[]);
 
-  const formDetails = dataPayload.formDetails as SchemaMeta | undefined;
   const meta = (dataPayload.meta ??
-    formDetails ??
     documentRoot.meta ??
     envelope.meta ??
     root.meta) as SchemaMeta | undefined;
 
   const batchType = envelope.batchType ?? documentRoot.batchType ?? dataPayload.batchType;
   const motorStage = envelope.motorStage ?? documentRoot.motorStage ?? dataPayload.motorStage;
+  const materialName = envelope.materialName ?? documentRoot.materialName ?? dataPayload.materialName;
+  const materialCode = envelope.materialCode ?? documentRoot.materialCode ?? dataPayload.materialCode;
   const context = {
     ...((dataPayload.context ?? documentRoot.context ?? envelope.context ?? root.context) as
       | Record<string, unknown>
@@ -117,6 +117,12 @@ export const parseSchemaDocument = (response: unknown): SchemaDocumentV2 | null 
       envelope.functionality ?? documentRoot.functionality ?? dataPayload.functionality ?? "",
     ),
     meta,
+    ...(materialName != null && String(materialName).trim()
+      ? { materialName: String(materialName).trim() }
+      : {}),
+    ...(materialCode != null && String(materialCode).trim()
+      ? { materialCode: String(materialCode).trim() }
+      : {}),
     data: {
       meta,
       ui: resolveSchemaRootUi(dataPayload, envelope),

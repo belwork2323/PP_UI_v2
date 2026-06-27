@@ -7,23 +7,23 @@ import {
   DISPATCH_STAGE_OPTIONS,
   DISPATCH_YES_NO_OPTIONS,
   canLoadDispatchForm,
-  getDispatchMotorOptions,
 } from "../../../../hooks/user/dispatch/dispatchFlowConfig";
 import type { DispatchFormState } from "../../../../data/models/user/DispatchFormModel";
 
 type DispatchFlowBarProps = {
-  batchId?: string;
+  batchId: string;
   formData: DispatchFormState;
   formLoaded: boolean;
   schemaLoading?: boolean;
-  onSetupChange: <K extends keyof DispatchFormState>(
-    field: K,
-    value: DispatchFormState[K],
-  ) => void;
+  onSetupChange: (field: string, value: string) => void;
   onLoadForm: () => void;
   theme: any;
-};
 
+  availableMotors?: Array<{
+    motorId: string;
+    motorStage?: string;
+  }>;
+};
 const DispatchFlowBar = ({
   batchId,
   formData,
@@ -32,10 +32,20 @@ const DispatchFlowBar = ({
   onSetupChange,
   onLoadForm,
   theme,
+  availableMotors = [],
 }: DispatchFlowBarProps) => {
   const flowBar = theme.manufacturing?.casePreparation?.flowBar ?? {};
   const L = DISPATCH_FLOW_LABELS;
-  const motorOptions = getDispatchMotorOptions(batchId, formData.motorStage);
+  const motorOptions = (availableMotors ?? [])
+  .filter(
+    (motor) =>
+      String(motor.motorStage ?? "") ===
+      String(formData.motorStage ?? "")
+  )
+  .map((motor) => ({
+    value: motor.motorId,
+    label: motor.motorId,
+  }));
   const canLoad = canLoadDispatchForm(formData);
 
   return (

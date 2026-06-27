@@ -471,18 +471,6 @@ const CastingCuringDetailDialog = ({ open, onClose, item, detailData, detailsLoa
 
           <Stack direction="row" gap={1} alignItems="center">
             {detailsLoading && <CircularProgress size={16} sx={{ color: alpha("#fff", 0.7) }} />}
-            <Chip
-              label={item.priority}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: "0.62rem",
-                fontWeight: 700,
-                background: PRIORITY_META[item.priority]?.bg,
-                color: PRIORITY_META[item.priority]?.color,
-                border: `1px solid ${PRIORITY_META[item.priority]?.border}`,
-              }}
-            />
             <Button
               size="small"
               variant="contained"
@@ -641,14 +629,6 @@ const CastingCuringDetailDialog = ({ open, onClose, item, detailData, detailsLoa
                         </Typography>
                       </Stack>
                     )}
-                    <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
-                      <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
-                        Priority
-                      </Typography>
-                      <Typography sx={{ fontWeight: 600, fontSize: "0.75rem", color: BRAND.text }}>
-                        {item.priority}
-                      </Typography>
-                    </Stack>
                     <Stack direction="row" sx={{ py: 0.3, borderBottom: `1px solid ${alpha(BRAND.border, 0.3)}` }}>
                       <Typography sx={{ minWidth: 220, fontSize: "0.72rem", fontWeight: 700, color: BRAND.textSub }}>
                         Status
@@ -823,7 +803,6 @@ const CastingCuringApproverPage = () => {
       statusMeta={CC_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
         { field: "motorStage", label: "Type", options: ["A", "B", "C"] },
       ]}
     >
@@ -847,7 +826,6 @@ const CastingCuringApproverPage = () => {
                     <TH>Type</TH>
                     <TH>Submitted By</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -887,9 +865,6 @@ const CastingCuringApproverPage = () => {
                           month: "short",
                           year: "numeric",
                         })}
-                      </TD>
-                      <TD>
-                        <PriorityChip priority={row.priority} />
                       </TD>
                       <TD>
                         <StatusChip status={row.status} />

@@ -1,7 +1,8 @@
 // src/ui/pages/user/quality_control/static_test_facility/STFList.jsx
 
 import React, { useMemo } from "react";
-import { Chip, Typography } from "@mui/material";
+import { alpha, Chip, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import { icons } from "../../../../../app/theme/icons";
 import IconText from "../../../../components/common/IconText";
 import UserBatchList from "../../../../components/custom/UserBatchList";
@@ -23,6 +24,9 @@ const {
   person: PersonRoundedIcon,
   calendar: CalendarMonthRoundedIcon,
 } = icons.user.qualityControl.staticTestFacility.list;
+
+const canViewStfDetails = (status: string) =>
+  status === OPERATION_STATUS.WAITING_FOR_APPROVAL || status === OPERATION_STATUS.APPROVED;
 
 // ─── Status constants ─────────────────────────────────────────────────────────
 export const STF_STATUS_CONFIG = getOperationStatusConfig({
@@ -53,54 +57,159 @@ const STFList = ({ hookState, rowsPerPageOptions }: any) => {
     loading,
     handleFillForm,
     handleEditForm,
+    handleViewDetails,
   } = hookState;
 
   const statusConfig = useMemo(
-    () => Object.fromEntries(
-      Object.entries(STF_STATUS_CONFIG).map(([status, cfg]) => [status, { ...cfg, ...theme.batchList.statusConfig[status] }])
-    ),
-    [theme]
+    () =>
+      Object.fromEntries(
+        Object.entries(STF_STATUS_CONFIG).map(([status, cfg]) => [
+          status,
+          { ...cfg, ...theme.batchList.statusConfig[status] },
+        ]),
+      ),
+    [theme],
   );
 
   const columns = useMemo(
     () => [
-      { key: "batchId", label: S.BATCH_LIST.COL_BATCH_ID, render: (v: string) => <Typography sx={theme.batchList.batchIdText}>{v}</Typography> },
-      { key: "motorId", label: S.BATCH_LIST.COL_MOTOR_ID, render: (v: string) => <Typography sx={theme.batchList.normalText}>{v}</Typography> },
-      { key: "motorType", label: S.BATCH_LIST.COL_TYPE, align: "center", render: (v: string) => <Chip label={`${S.BATCH_LIST.MOTOR_TYPE_PREFIX}${v}`} size="small" sx={theme.batchList.batchTypeChip} /> },
-      { key: "assignedTo.fullName", label: S.BATCH_LIST.COL_MANAGER, render: (v: string) => <IconText icon={<PersonRoundedIcon sx={theme.batchList.icon} />} text={v ?? S.BATCH_LIST.UNASSIGNED} textSx={theme.batchList.subtleText} /> },
-      { key: "createdOn", label: S.BATCH_LIST.COL_CREATED_ON, render: (v: string) => <IconText icon={<CalendarMonthRoundedIcon sx={theme.batchList.icon} />} text={new Date(v).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} textSx={theme.batchList.subtleText} /> },
-      { key: "priority", label: S.BATCH_LIST.COL_PRIORITY, align: "center", render: (v: string) => { const cfg = theme.batchList.priorityConfig[v] ?? theme.batchList.priorityConfig.Medium; return <Chip label={v} size="small" sx={{ height: 22, fontSize: "0.68rem", fontWeight: 700, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }} />; } },
-      { key: "stfStatus", label: S.STATIC_TEST_FACILITY.COL_STATUS, align: "center", render: (v: string, row: any) => <UserWorkflowStatusCell status={v} statusConfig={statusConfig} rejectedStatus={OPERATION_STATUS.REJECTED} rejectionReason={row.rejectionReason} theme={theme} /> },
+      {
+        key: "batchId",
+        label: S.BATCH_LIST.COL_BATCH_ID,
+        render: (v: string) => <Typography sx={theme.batchList.batchIdText}>{v}</Typography>,
+      },
+      {
+        key: "motorId",
+        label: S.BATCH_LIST.COL_MOTOR_ID,
+        render: (v: string) => <Typography sx={theme.batchList.normalText}>{v}</Typography>,
+      },
+      {
+        key: "motorType",
+        label: S.BATCH_LIST.COL_TYPE,
+        align: "center",
+        render: (v: string) => (
+          <Chip label={`${S.BATCH_LIST.MOTOR_TYPE_PREFIX}${v}`} size="small" sx={theme.batchList.batchTypeChip} />
+        ),
+      },
+      {
+        key: "assignedTo.fullName",
+        label: S.BATCH_LIST.COL_MANAGER,
+        render: (v: string) => (
+          <IconText
+            icon={<PersonRoundedIcon sx={theme.batchList.icon} />}
+            text={v ?? S.BATCH_LIST.UNASSIGNED}
+            textSx={theme.batchList.subtleText}
+          />
+        ),
+      },
+      {
+        key: "createdOn",
+        label: S.BATCH_LIST.COL_CREATED_ON,
+        render: (v: string) => (
+          <IconText
+            icon={<CalendarMonthRoundedIcon sx={theme.batchList.icon} />}
+            text={new Date(v).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+            textSx={theme.batchList.subtleText}
+          />
+        ),
+      },
+      {
+        key: "priority",
+        label: S.BATCH_LIST.COL_PRIORITY,
+        align: "center",
+        render: (v: string) => {
+          const cfg = theme.batchList.priorityConfig[v] ?? theme.batchList.priorityConfig.Medium;
+          return (
+            <Chip
+              label={v}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                background: cfg.bg,
+                color: cfg.color,
+                border: `1px solid ${cfg.border}`,
+              }}
+            />
+          );
+        },
+      },
+      {
+        key: "stfStatus",
+        label: S.STATIC_TEST_FACILITY.COL_STATUS,
+        align: "center",
+        render: (v: string, row: any) => (
+          <UserWorkflowStatusCell
+            status={v}
+            statusConfig={statusConfig}
+            rejectedStatus={OPERATION_STATUS.REJECTED}
+            rejectionReason={row.rejectionReason}
+            theme={theme}
+          />
+        ),
+      },
     ],
-    [statusConfig, theme]
+    [statusConfig, theme],
   );
 
   return (
-  <UserBatchList
-    rows={batches}
-    columns={columns}
-    statusField="stfStatus"
-    statusConfig={statusConfig}
-    filters={[{ field: "priority", options: ["Critical", "High", "Medium", "Low"] }]}
-    searchFields={["batchId", "motorId"]}
-    highlightRow={(row: any) => row.stfStatus === OPERATION_STATUS.REJECTED}
-    highlightColor={theme.palette.danger}
-    rowsPerPageOptions={rowsPerPageOptions}
-    tableLabel={S.STATIC_TEST_FACILITY.TABLE_LABEL}
-    themeTokens={theme}
-    totalRecords={totalRecords}
-    statusCounts={statusCounts}
-    page={page}
-    rowsPerPage={rowsPerPage}
-    search={search}
-    statusFilter={statusFilter}
-    onPageChange={setPage}
-    onRowsPerPageChange={setRowsPerPage}
-    onSearchChange={setSearch}
-    onStatusFilterChange={setStatusFilter}
-    isLoading={loading}
-    renderAction={(row: any) => <UserWorkflowStatusAction status={row.stfStatus} row={row} statusMap={OPERATION_STATUS} onFillForm={handleFillForm} onEditForm={handleEditForm} theme={theme} fillLabel={S.BATCH_LIST.FILL_ACTION} continueLabel={S.BATCH_LIST.CONTINUE_ACTION} editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP} />}
-  />
+    <UserBatchList
+      rows={batches}
+      columns={columns}
+      statusField="stfStatus"
+      statusConfig={statusConfig}
+      filters={[{ field: "priority", options: ["Critical", "High", "Medium", "Low"] }]}
+      searchFields={["batchId", "motorId"]}
+      highlightRow={(row: any) => row.stfStatus === OPERATION_STATUS.REJECTED}
+      highlightColor={theme.palette.danger}
+      rowsPerPageOptions={rowsPerPageOptions}
+      tableLabel={S.STATIC_TEST_FACILITY.TABLE_LABEL}
+      themeTokens={theme}
+      totalRecords={totalRecords}
+      statusCounts={statusCounts}
+      page={page}
+      rowsPerPage={rowsPerPage}
+      search={search}
+      statusFilter={statusFilter}
+      onPageChange={setPage}
+      onRowsPerPageChange={setRowsPerPage}
+      onSearchChange={setSearch}
+      onStatusFilterChange={setStatusFilter}
+      isLoading={loading}
+      renderAction={(row: any) => (
+        <Stack direction="row" alignItems="center" spacing={0.75}>
+          {canViewStfDetails(row.stfStatus) ? (
+            <Tooltip title={S.BATCH_LIST.VIEW_DETAILS_TOOLTIP} arrow placement="top">
+              <IconButton
+                size="small"
+                onClick={() => handleViewDetails(row)}
+                sx={{
+                  color: theme.palette.primaryLight,
+                  border: `1px solid ${alpha(theme.palette.primaryLight, 0.35)}`,
+                  borderRadius: 1.5,
+                  "&:hover": { background: alpha(theme.palette.primaryLight, 0.08) },
+                }}
+              >
+                <VisibilityRoundedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <UserWorkflowStatusAction
+              status={row.stfStatus}
+              row={row}
+              statusMap={OPERATION_STATUS}
+              onFillForm={handleFillForm}
+              onEditForm={handleEditForm}
+              fillLabel={S.BATCH_LIST.FILL_ACTION}
+              continueLabel={S.BATCH_LIST.CONTINUE_ACTION}
+              editTooltip={S.BATCH_LIST.EDIT_ACTION_TOOLTIP}
+              theme={theme}
+            />
+          )}
+        </Stack>
+      )}
+    />
   );
 };
 

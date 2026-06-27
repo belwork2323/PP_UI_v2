@@ -26,6 +26,7 @@ export const buildMockTrialSchemaRequest = (params: {
   return {
     schemaVersion: MOCK_TRIAL_SCHEMA_VERSION,
     schemaType: MOCK_TRIAL_SCHEMA_TYPE,
+    layout: { type: "flat" },
     motorStage,
     subdepartmentId: params.subDepartmentId,
     functionality: MOCK_TRIAL_SCHEMA_FUNCTIONALITY,

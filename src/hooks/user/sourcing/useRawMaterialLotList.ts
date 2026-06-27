@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { STRINGS } from "../../../app/config/strings";
 import { useAuthStore } from "../../../app/store/authStore";
 import { useUserBatchRefreshStore } from "../../../app/store/userBatchRefreshStore";
@@ -8,13 +8,12 @@ import {
   type MaterialsListItem,
 } from "../../../data/models/user/MaterialsListModel";
 import rawMaterialProcurementController from "../../../controllers/user/sourcing/rawMaterialProcurementController";
-import { OPERATION_STATUS } from "../../operationStatus";
+import { OPERATION_STATUS, toOperationStatusApiValue } from "../../operationStatus";
 import {
   mapLotListApiRow,
   rawMaterialLotMatchesSearch,
   type RawMaterialLotListRow,
   RawMaterialLotListRequest,
-  RAW_MATERIAL_UI_STATUS_TO_API,
 } from "../../../data/models/user/RawMaterialProcurementModel";
 
 const FILTER_ALL = STRINGS.USER_BATCH_LIST.FILTER_ALL;
@@ -94,6 +93,8 @@ const mapLotListStatusCountsForUi = (
 export const useRawMaterialLotList = () => {
   const user = useAuthStore((s) => s.user);
   const refreshVersion = useUserBatchRefreshStore((state) => state.version);
+  const bumpBatchRefresh = useUserBatchRefreshStore((state) => state.bumpVersion);
+  const suppressVersionFetchRef = useRef(false);
 
   const subDepartmentId = user?.allSubDepartments.find((sd) => sd.slugs?.subDept === "raw-material")?.subDepartmentId;
 
@@ -191,10 +192,11 @@ export const useRawMaterialLotList = () => {
         page: isClientSearch ? 1 : page + 1,
         limit: isClientSearch ? CLIENT_SEARCH_FETCH_LIMIT : rowsPerPage,
       };
-      console.log("statusFilter =", statusFilter);
-      console.log("mapped =", RAW_MATERIAL_UI_STATUS_TO_API[statusFilter]);
       if (statusFilter !== FILTER_ALL) {
-        payload.status = [RAW_MATERIAL_UI_STATUS_TO_API[statusFilter] ?? statusFilter];
+        const apiStatus = toOperationStatusApiValue(statusFilter, FILTER_ALL);
+        if (apiStatus) {
+          payload.status = [apiStatus];
+        }
       }
 
       if (advancedFilters.materialCodes.length) {
@@ -253,12 +255,26 @@ export const useRawMaterialLotList = () => {
     debouncedSearch,
     statusFilter,
     advancedFilters,
-    refreshVersion,
   ]);
 
   useEffect(() => {
     void fetchLots();
   }, [fetchLots]);
+
+  useEffect(() => {
+    if (suppressVersionFetchRef.current) {
+      suppressVersionFetchRef.current = false;
+      return;
+    }
+    if (refreshVersion === 0) return;
+    void fetchLots();
+  }, [refreshVersion, fetchLots]);
+
+  const refreshUserBatches = useCallback(async () => {
+    suppressVersionFetchRef.current = true;
+    await fetchLots();
+    bumpBatchRefresh();
+  }, [fetchLots, bumpBatchRefresh]);
 
   return {
     batches,
@@ -273,7 +289,7 @@ export const useRawMaterialLotList = () => {
     setRowsPerPage,
     setSearch,
     setStatusFilter,
-    refreshUserBatches: fetchLots,
+    refreshUserBatches,
     materialOptions,
     materialsLoading,
     advancedFilters,

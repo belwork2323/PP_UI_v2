@@ -2,7 +2,6 @@ import {
   buildDispatchSectionPayload,
   createDispatchInitialValues,
   DISPATCH_SCHEMA_TYPE,
-  hydrateDispatchValuesFromSections,
   schemaValuesHaveUserData,
   type SchemaDocumentV2,
   type SchemaFormValues,
@@ -15,14 +14,14 @@ export const createDispatchData = () => ({
   castingDate: "",
   dispatchDate: "",
   dispatchLocation: "",
-  ndtClearance: "",
+  ndtClearance: "NO", // Initialized to default option matching UI selections
   ndtMomNo: "",
-  finalAcceptanceClearance: "",
+  finalAcceptanceClearance: "NO", // Initialized to default option matching UI selections
   finalAcceptanceMomNo: "",
   schemaFormLoaded: false,
   dispatchSchema: null as SchemaDocumentV2 | null,
   schemaFormValues: {} as SchemaFormValues,
-  savedSections: undefined as SchemaSectionSubmission[] | undefined,
+  savedSchemaValues: undefined as Record<string, any> | undefined,
 });
 
 export type DispatchFormState = ReturnType<typeof createDispatchData>;
@@ -67,20 +66,16 @@ export const hydrateDispatchFormState = (
 ): DispatchFormState => ({
   ...state,
   dispatchSchema: schema,
-  schemaFormValues: state.savedSections?.length
-    ? hydrateDispatchValuesFromSections(schema, state.savedSections)
+  schemaFormValues: state.savedSchemaValues
+    ? { ...createDispatchInitialValues(schema), ...state.savedSchemaValues }
     : Object.keys(state.schemaFormValues ?? {}).length > 0
       ? state.schemaFormValues
       : createDispatchInitialValues(schema),
   schemaFormLoaded: true,
 });
 
-export const mapDispatchDetailsToFormState = (
-  details: Partial<DispatchDetails>,
-): DispatchFormState => {
+export const mapDispatchDetailsToFormState = (details: any): DispatchFormState => {
   const defaults = createDefaultDispatchFormState();
-  const savedSections = Array.isArray(details?.sections) ? details.sections : undefined;
-
   return {
     ...defaults,
     motorStage: String(details?.motorStage ?? ""),
@@ -88,12 +83,70 @@ export const mapDispatchDetailsToFormState = (
     castingDate: String(details?.castingDate ?? ""),
     dispatchDate: String(details?.dispatchDate ?? ""),
     dispatchLocation: String(details?.dispatchLocation ?? ""),
-    ndtClearance: String(details?.ndtClearance ?? ""),
+    ndtClearance: String(details?.ndtClearance ?? "NO"),
     ndtMomNo: String(details?.ndtMomNo ?? ""),
-    finalAcceptanceClearance: String(details?.finalAcceptanceClearance ?? ""),
+    finalAcceptanceClearance: String(details?.finalAcceptanceClearance ?? "NO"),
     finalAcceptanceMomNo: String(details?.finalAcceptanceMomNo ?? ""),
-    schemaFormLoaded: Boolean(savedSections?.length),
-    savedSections,
+    schemaFormLoaded: Boolean(details?.schemaValues),
+    savedSchemaValues: details?.schemaValues,
+  };
+};
+
+// Generates structural creation payload object layout matching deep backend expectations
+export const mapDispatchFormStateToBackendPayload = (
+  form: DispatchFormState,
+  batchId: string,
+  subDepartmentId: number,
+  intent: "DRAFT" | "SUBMIT",
+) => {
+  const schemaValues = form.schemaFormValues ?? {};
+
+  return {
+    batchId: batchId,
+    subDepartmentId: subDepartmentId,
+    formSubmissionType: intent,
+    motors: [
+      {
+        motorId: form.motorId,
+        dispatchDetails: {
+          projectName: schemaValues.projectName || "",
+          stage: form.motorStage ? `STAGE_${form.motorStage}` : "",
+          castingDate: form.castingDate || "",
+          dispatchDate: form.dispatchDate || "",
+          dispatchLocation: form.dispatchLocation || "",
+          ndtClearance: {
+            accorded: form.ndtClearance || "NO",
+            momNo: form.ndtClearance === "YES" ? form.ndtMomNo || "" : "",
+          },
+          finalAcceptanceCommitteeClearance: {
+            accorded: form.finalAcceptanceClearance || "NO",
+            momNo: form.finalAcceptanceClearance === "YES" ? form.finalAcceptanceMomNo || "" : "",
+          },
+          propellantProperties: schemaValues.propellantProperties ?? [],
+          waiverDetails: schemaValues.waiverDetails ?? { available: false, details: "", uploadedDocuments: [] },
+          rocketMotorInspection: schemaValues.rocketMotorInspection ?? [],
+          vehicleDetails: schemaValues.vehicleDetails ?? [],
+          rocketMotorPackingDetails: schemaValues.rocketMotorPackingDetails ?? [],
+          uploadDispatchPhotos: schemaValues.uploadDispatchPhotos ?? [],
+          safetyClearance: schemaValues.safetyClearance ?? { accorded: "NO", clearanceCertificate: "" },
+          dispatchTeam: schemaValues.dispatchTeam ?? { qaRepresentative: "", safetyRepresentative: "", projectRepresentative: "" }
+        }
+      }
+    ]
+  };
+};
+
+// Generates update variant mapping including the required explicit root-level formId key
+export const mapDispatchFormStateToUpdatePayload = (
+  form: DispatchFormState,
+  formId: string,
+  batchId: string,
+  subDepartmentId: number,
+  intent: "DRAFT" | "SUBMIT",
+) => {
+  return {
+    formId, // Explicitly extracted by .remove("formId") inside Java Controller Map Layer
+    ...mapDispatchFormStateToBackendPayload(form, batchId, subDepartmentId, intent)
   };
 };
 
@@ -124,11 +177,9 @@ const hasSetupValue = (form: DispatchFormState) =>
     form.castingDate,
     form.dispatchDate,
     form.dispatchLocation,
-    form.ndtClearance,
-    form.ndtMomNo,
-    form.finalAcceptanceClearance,
-    form.finalAcceptanceMomNo,
-  ].some((value) => String(value ?? "").trim().length > 0);
+  ].some((value) => String(value ?? "").trim().length > 0) ||
+  (form.ndtClearance === "YES" && String(form.ndtMomNo ?? "").trim().length > 0) ||
+  (form.finalAcceptanceClearance === "YES" && String(form.finalAcceptanceMomNo ?? "").trim().length > 0);
 
 export const hasAnyDispatchValue = (form: DispatchFormState) =>
   hasSetupValue(form) || schemaValuesHaveUserData(form.schemaFormValues ?? {});

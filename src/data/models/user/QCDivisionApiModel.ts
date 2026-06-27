@@ -1,6 +1,6 @@
 import type { QualityControlFormState } from "./QualityControlFormModel";
 import { mapQualityControlDetailsToFormState } from "./QualityControlFormModel";
-import type { SchemaSectionSubmission } from "../../schema-engine";
+import type { SchemaSectionSubmission } from "../../../schema-engine";
 
 export type QCDivisionSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
 
@@ -28,6 +28,7 @@ export class QCDivisionDetailsModel {
   division?: string | null;
   subType?: string | null;
   sections?: SchemaSectionSubmission[];
+  divisionDetails?: any[];
   workflowInsights: {
     currentStatus: string;
     rejectionReason: string | null;
@@ -38,13 +39,31 @@ export class QCDivisionDetailsModel {
     this.batchId = payload?.batchId ?? "";
     this.subDepartmentId = Number(payload?.subDepartmentId ?? 0);
     this.formSubmissionType = payload?.formSubmissionType ?? "";
-    this.division = payload?.division ?? null;
-    this.subType = payload?.subType ?? null;
-    this.sections = Array.isArray(payload?.sections) ? payload.sections : undefined;
+
     this.workflowInsights = {
-      currentStatus: payload?.workflowInsights?.currentStatus ?? "",
+      currentStatus: payload?.workflowInsights?.currentStatus ?? payload?.status ?? "",
       rejectionReason: payload?.workflowInsights?.rejectionReason ?? null,
     };
+
+    const divisionDetails = payload?.divisionDetails;
+    this.divisionDetails = Array.isArray(divisionDetails) ? divisionDetails : undefined;
+    if (Array.isArray(divisionDetails) && divisionDetails.length > 0) {
+      const first = divisionDetails[0];
+      this.division = first?.division ?? null;
+      this.subType = first?.subType ?? null;
+      const allSections: SchemaSectionSubmission[] = [];
+      for (const detail of divisionDetails) {
+        const detailSections = detail?.data?.sections;
+        if (Array.isArray(detailSections)) {
+          allSections.push(...detailSections);
+        }
+      }
+      this.sections = allSections.length > 0 ? allSections : undefined;
+    } else {
+      this.division = payload?.division ?? null;
+      this.subType = payload?.subType ?? null;
+      this.sections = Array.isArray(payload?.sections) ? payload.sections : undefined;
+    }
   }
 
   static fromApi(apiResponse: any): QCDivisionDetailsModel {

@@ -151,7 +151,13 @@ const RawMaterialPremixSchemaPanel = ({
         loading={loading}
         error={error}
         themeTokens={themeTokens}
-        apiContext={{ subDepartmentId, batchId }}
+        apiContext={{
+          subDepartmentId,
+          batchId,
+          materialCode,
+          materialId: resolvedMaterialId,
+          gradeId: resolvedGradeId ?? undefined,
+        }}
       />
     </Box>
   );

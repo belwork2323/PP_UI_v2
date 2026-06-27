@@ -381,8 +381,8 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
         clearChipSx={filterPanelHeaderSx.clearChipSx}
       />
 
-      <Stack direction={{ xs: "column", lg: "row" }} spacing={1.5} flexWrap="wrap" useFlexGap>
-        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: { xs: "100%", sm: 220 }, flex: { lg: "0 0 auto" } }}>
+      <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: { xs: "100%", sm: 180 }, flex: { lg: "0 0 auto" } }}>
           <TextField
             select
             size="small"
@@ -391,6 +391,14 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
             onChange={(e) => setDraftMaterial(e.target.value)}
             disabled={materialsLoading}
             fullWidth
+            sx={theme.batchList.filterPanelField}
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  sx: { "& .MuiMenuItem-root": theme.batchList.filterPanelMenuItem },
+                },
+              },
+            }}
           >
             <MenuItem value={FILTER_ALL}>{STRINGS.SOURCING.BATCH_LIST.FILTERS_ALL_MATERIALS}</MenuItem>
             {!materialsLoading &&
@@ -400,7 +408,7 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
                 </MenuItem>
               ))}
           </TextField>
-          {materialsLoading ? <CircularProgress size={22} sx={{ mt: 1.25, color: theme.palette.primaryLight }} /> : null}
+          {materialsLoading ? <CircularProgress size={18} sx={{ mt: 0.75, color: theme.palette.primaryLight }} /> : null}
         </Stack>
 
         <TextField
@@ -409,7 +417,7 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
           value={draftManufacturer}
           onChange={(e) => setDraftManufacturer(e.target.value)}
           placeholder="e.g. Prefiled"
-          sx={{ minWidth: { xs: "100%", sm: 200 }, flex: { lg: 1 } }}
+          sx={{ ...theme.batchList.filterPanelField, minWidth: { xs: "100%", sm: 160 }, flex: { lg: 1 } }}
         />
 
         <TextField
@@ -418,7 +426,14 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
           label={STRINGS.SOURCING.BATCH_LIST.FILTERS_STATUS}
           value={draftStatus}
           onChange={(e) => setDraftStatus(e.target.value)}
-          sx={{ minWidth: { xs: "100%", sm: 200 } }}
+          sx={{ ...theme.batchList.filterPanelField, minWidth: { xs: "100%", sm: 160 } }}
+          SelectProps={{
+            MenuProps: {
+              PaperProps: {
+                sx: { "& .MuiMenuItem-root": theme.batchList.filterPanelMenuItem },
+              },
+            },
+          }}
         >
           {STATUS_DROPDOWN_VALUES.map((s) => (
             <MenuItem key={s} value={s}>
@@ -436,7 +451,7 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
             slotProps={{
               textField: {
                 size: "small",
-                sx: { minWidth: { xs: "100%", sm: 160 } },
+                sx: { ...theme.batchList.filterPanelField, minWidth: { xs: "100%", sm: 140 } },
               },
             }}
           />
@@ -448,7 +463,7 @@ const RawMaterialBatchList = ({ hookState, rowsPerPageOptions }: any) => {
             slotProps={{
               textField: {
                 size: "small",
-                sx: { minWidth: { xs: "100%", sm: 160 } },
+                sx: { ...theme.batchList.filterPanelField, minWidth: { xs: "100%", sm: 140 } },
               },
             }}
           />

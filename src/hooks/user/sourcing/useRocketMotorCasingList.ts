@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../../../app/store/authStore";
 import { useUserBatchRefreshStore } from "../../../app/store/userBatchRefreshStore";
 import { STRINGS } from "../../../app/config/strings";
@@ -8,7 +8,7 @@ import {
   normalizeRocketCasingListStatus,
   rocketMotorCasingMatchesSearch,
 } from "../../../data/models/user/RocketMotorCasingProcurementModel";
-import { OPERATION_STATUS } from "../../operationStatus";
+import { OPERATION_STATUS, toOperationStatusApiValue } from "../../operationStatus";
 import type { RocketMotorBatch } from "./sourcingWorkflowData";
 
 const FILTER_ALL = STRINGS.USER_BATCH_LIST.FILTER_ALL;
@@ -32,14 +32,6 @@ const buildStatusCountsFromBatches = (batches: RocketMotorBatch[], totalRecords:
     ...counts,
     [FILTER_ALL]: totalRecords,
   };
-};
-
-const UI_STATUS_TO_API: Record<string, string> = {
-  [OPERATION_STATUS.INITIATED]: "INITIATED",
-  [OPERATION_STATUS.IN_PROGRESS]: "IN_PROGRESS",
-  [OPERATION_STATUS.WAITING_FOR_APPROVAL]: "WAITING_FOR_APPROVAL",
-  [OPERATION_STATUS.APPROVED]: "APPROVED",
-  [OPERATION_STATUS.REJECTED]: "REJECTED",
 };
 
 export type MotorStageOption = { motorStage: string; noOfmotors: number };
@@ -133,6 +125,8 @@ const mapStatusCountsForUi = (server: Record<string, number> | undefined, totalR
 export const useRocketMotorCasingList = () => {
   const user = useAuthStore((s) => s.user);
   const refreshVersion = useUserBatchRefreshStore((s) => s.version);
+  const bumpBatchRefresh = useUserBatchRefreshStore((s) => s.bumpVersion);
+  const suppressVersionFetchRef = useRef(false);
 
   const subDepartmentId = useMemo(
     () => user?.allSubDepartments.find((sd) => sd.slugs?.subDept === "rocket-motor")?.subDepartmentId,
@@ -246,7 +240,7 @@ export const useRocketMotorCasingList = () => {
       };
 
       if (statusFilter !== FILTER_ALL) {
-        const apiStatus = UI_STATUS_TO_API[statusFilter];
+        const apiStatus = toOperationStatusApiValue(statusFilter, FILTER_ALL);
         if (apiStatus) {
           payload.status = [apiStatus];
         }
@@ -308,11 +302,26 @@ export const useRocketMotorCasingList = () => {
     } finally {
       setLoading(false);
     }
-  }, [subDepartmentId, page, rowsPerPage, debouncedSearch, statusFilter, advancedFilters, refreshVersion]);
+  }, [subDepartmentId, page, rowsPerPage, debouncedSearch, statusFilter, advancedFilters]);
 
   useEffect(() => {
     void fetchBatches();
   }, [fetchBatches]);
+
+  useEffect(() => {
+    if (suppressVersionFetchRef.current) {
+      suppressVersionFetchRef.current = false;
+      return;
+    }
+    if (refreshVersion === 0) return;
+    void fetchBatches();
+  }, [refreshVersion, fetchBatches]);
+
+  const refreshUserBatches = useCallback(async () => {
+    suppressVersionFetchRef.current = true;
+    await fetchBatches();
+    bumpBatchRefresh();
+  }, [fetchBatches, bumpBatchRefresh]);
 
   return {
     batches,
@@ -327,7 +336,7 @@ export const useRocketMotorCasingList = () => {
     setRowsPerPage,
     setSearch,
     setStatusFilter,
-    refreshUserBatches: fetchBatches,
+    refreshUserBatches,
     motorStageOptions,
     motorStagesLoading,
     advancedFilters,

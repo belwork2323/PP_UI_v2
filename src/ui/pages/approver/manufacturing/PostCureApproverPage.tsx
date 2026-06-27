@@ -343,18 +343,6 @@ const PostCureDetailDialog = ({ open, onClose, item, onApprove, onReject }) => {
           </Stack>
 
           <Stack direction="row" gap={1} alignItems="center">
-            <Chip
-              label={item.priority}
-              size="small"
-              sx={{
-                height: 20,
-                fontSize: "0.62rem",
-                fontWeight: 700,
-                background: PRIORITY_META[item.priority]?.bg,
-                color: PRIORITY_META[item.priority]?.color,
-                border: `1px solid ${PRIORITY_META[item.priority]?.border}`,
-              }}
-            />
             <Button
               size="small"
               variant="contained"
@@ -457,7 +445,6 @@ const PostCureApproverPage = () => {
       statusMeta={PC_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
-        { field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
         { field: "motorType", label: "Type", options: ["A", "B", "C"] },
       ]}
     >
@@ -482,7 +469,6 @@ const PostCureApproverPage = () => {
                     <TH>Motor No.</TH>
                     <TH>Submitted By</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -532,9 +518,6 @@ const PostCureApproverPage = () => {
                           month: "short",
                           year: "numeric",
                         })}
-                      </TD>
-                      <TD>
-                        <PriorityChip priority={row.priority} />
                       </TD>
                       <TD>
                         <StatusChip status={row.status} />

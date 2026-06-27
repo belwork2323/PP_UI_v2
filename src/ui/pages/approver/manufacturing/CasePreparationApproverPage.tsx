@@ -343,12 +343,6 @@ const CPDetailDialog = ({ open, onClose, item, onApprove, onReject, detailsLoadi
             </Box>
           </Stack>
           <Stack direction="row" gap={1} alignItems="center">
-            <Chip label={item.priority} size="small" sx={{
-              height: 20, fontSize: "0.62rem", fontWeight: 700,
-              background: PRIORITY_META[item.priority]?.bg,
-              color:      PRIORITY_META[item.priority]?.color,
-              border: `1px solid ${PRIORITY_META[item.priority]?.border}`,
-            }} />
             {detailsLoading && <CircularProgress size={16} sx={{ color: alpha("#fff", 0.7) }} />}
             <Button size="small" variant="contained"
               startIcon={<PictureAsPdfRoundedIcon sx={{ fontSize: "14px !important" }} />}
@@ -532,7 +526,6 @@ const CasePreparationApproverPage = () => {
       statusMeta={CP_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
       filterFields={[
-        { field: "priority",  label: "Priority", options: ["Critical", "High", "Medium", "Low"] },
         { field: "motorType", label: "Type",      options: ["A", "B", "C"] },
       ]}
     >
@@ -552,7 +545,6 @@ const CasePreparationApproverPage = () => {
                     <TH>Motor Case IDs</TH>
                     <TH>Submitted By</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -577,7 +569,6 @@ const CasePreparationApproverPage = () => {
                       <TD sx={{ color: BRAND.textSub, fontSize: "0.76rem", whiteSpace: "nowrap" }}>
                         {new Date(row.createdOn).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                       </TD>
-                      <TD><PriorityChip priority={row.priority} /></TD>
                       <TD><StatusChip status={row.status} /></TD>
                       <TD sx={{ textAlign: "center" }}>
                         <Button size="small" variant="outlined"

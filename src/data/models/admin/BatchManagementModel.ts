@@ -51,6 +51,160 @@ export function motorStageLabel(stage: string | number | null | undefined): stri
   return `Stage ${value}`;
 }
 
+const BATCH_DEPARTMENT_NAMES = new Set([
+  "Sourcing",
+  "Manufacturing",
+  "Quality Control",
+  "Dispatch",
+]);
+
+/** Human-readable label for API sub-department names / slugs / PascalCase values */
+export function formatBatchSubDepartmentLabel(name: string | null | undefined): string {
+  const trimmed = String(name ?? "").trim();
+  if (!trimmed) return "—";
+  if (/\s/.test(trimmed)) return trimmed;
+  if (trimmed.includes("-")) {
+    return trimmed
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+  return trimmed
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .trim();
+}
+
+type BatchWorkflowSubDepartment = {
+  subDepartmentId: number;
+  subDepartmentName: string;
+};
+
+function normalizeSubDepartmentEntry(raw: unknown): BatchWorkflowSubDepartment | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") {
+    const name = raw.trim();
+    if (!name) return null;
+    return { subDepartmentId: 0, subDepartmentName: name };
+  }
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    const name = String(obj.subDepartmentName ?? obj.name ?? obj.label ?? "").trim();
+    if (!name) return null;
+    return {
+      subDepartmentId: Number(obj.subDepartmentId ?? obj.id ?? 0) || 0,
+      subDepartmentName: name,
+    };
+  }
+  return null;
+}
+
+/** Resolve current department + sub-department from list/details API shapes */
+export function parseBatchWorkflowFromApi(data: Record<string, any>) {
+  const rawStage =
+    data.stage ??
+    data.workflowStage ??
+    data.currentStage ??
+    data.currentWorkflow ??
+    data.rawStage ??
+    null;
+
+  const existingDeptName = String(data.department?.departmentName ?? "").trim();
+  const existingSubDepts = Array.isArray(data.subDepartments)
+    ? data.subDepartments
+        .map(normalizeSubDepartmentEntry)
+        .filter((item): item is BatchWorkflowSubDepartment => item != null)
+    : [];
+
+  let department =
+    existingDeptName
+      ? {
+          departmentId: data.department?.departmentId ?? null,
+          departmentName: existingDeptName,
+        }
+      : null;
+  let subDepartments = [...existingSubDepts];
+
+  const pushSubDept = (raw: unknown) => {
+    const entry = normalizeSubDepartmentEntry(raw);
+    if (!entry) return;
+    if (subDepartments.some((item) => item.subDepartmentName === entry.subDepartmentName)) return;
+    subDepartments = [...subDepartments, entry];
+  };
+
+  if (typeof rawStage === "string") {
+    const label = rawStage.trim();
+    if (label) {
+      if (BATCH_DEPARTMENT_NAMES.has(label)) {
+        department = { departmentId: null, departmentName: label };
+      } else {
+        pushSubDept(label);
+      }
+    }
+  } else if (rawStage && typeof rawStage === "object") {
+    const stageObj = rawStage as Record<string, any>;
+    const deptNode =
+      stageObj.department && typeof stageObj.department === "object"
+        ? stageObj.department
+        : stageObj.departmentId != null || stageObj.departmentName
+          ? stageObj
+          : null;
+
+    if (deptNode) {
+      const deptName = String(deptNode.departmentName ?? "").trim();
+      if (deptName) {
+        department = {
+          departmentId: deptNode.departmentId ?? null,
+          departmentName: deptName,
+        };
+      }
+
+      const nested = Array.isArray(deptNode.subDepartments)
+        ? deptNode.subDepartments
+        : Array.isArray(deptNode.subDepartment)
+          ? deptNode.subDepartment
+          : [];
+      nested.forEach(pushSubDept);
+
+      if (nested.length === 0) {
+        pushSubDept(deptNode.subDepartmentName ?? stageObj.subDepartmentName);
+      }
+    } else {
+      const stageDept = String(stageObj.departmentName ?? "").trim();
+      if (stageDept && BATCH_DEPARTMENT_NAMES.has(stageDept)) {
+        department = { departmentId: stageObj.departmentId ?? null, departmentName: stageDept };
+      }
+      pushSubDept(stageObj.subDepartmentName ?? stageObj.label ?? stageObj.name);
+    }
+  }
+
+  if (!department) {
+    const departmentName = data.departmentName ?? data.currentDepartment;
+    if (typeof departmentName === "string" && departmentName.trim()) {
+      department = {
+        departmentId: data.departmentId ?? null,
+        departmentName: departmentName.trim(),
+      };
+    }
+  }
+
+  if (subDepartments.length === 0) {
+    pushSubDept(
+      data.subDepartment ??
+        data.subDept ??
+        data.currentSubDepartment ??
+        data.subDepartmentName
+    );
+  }
+
+  if (subDepartments.length === 0 && data.currentSubDepartment) {
+    pushSubDept(data.currentSubDepartment);
+  }
+
+  return { department, subDepartments, rawStage };
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    READ MODEL  —  BatchListItemModel
    Maps response.data.batches[] items and response.data.batch (details).
@@ -76,6 +230,7 @@ export class BatchListItemModel {
   // Flattened stage / department fields for easy table access
   department          : { departmentId: number | null; departmentName: string } | null;
   subDepartments      : { subDepartmentId: number; subDepartmentName: string }[];
+  rawStage            : unknown;
 
   status              : string;
   createdOn           : string | null;
@@ -122,32 +277,10 @@ export class BatchListItemModel {
     this.identificationSheetStatus =
       data.identificationSheetStatus ?? data.identification_sheet_status ?? null;
 
-    // stage may be { department, subDepartments } or flat { departmentId, departmentName, subDepartments }
-    const stageRoot =
-      data.stage && typeof data.stage === "object" ? data.stage : null;
-    const dept =
-      stageRoot?.department && typeof stageRoot.department === "object"
-        ? stageRoot.department
-        : stageRoot?.departmentId != null || stageRoot?.departmentName
-          ? stageRoot
-          : null;
-
-    this.department = dept
-      ? { departmentId: dept.departmentId ?? null, departmentName: dept.departmentName ?? "" }
-      : null;
-
-    const nestedSubDepartments = Array.isArray(dept?.subDepartments)
-      ? dept.subDepartments
-      : Array.isArray(dept?.subDepartment)
-        ? dept.subDepartment
-        : [];
-
-    this.subDepartments = nestedSubDepartments.length > 0
-      ? nestedSubDepartments.map((sd: any) => ({
-          subDepartmentId  : sd.subDepartmentId,
-          subDepartmentName: sd.subDepartmentName ?? "",
-        }))
-      : [];
+    const workflow = parseBatchWorkflowFromApi(data);
+    this.department = workflow.department;
+    this.subDepartments = workflow.subDepartments;
+    this.rawStage = workflow.rawStage;
 
     // Audit fields
     this.createdOn = data.createdOn ?? null;
@@ -172,6 +305,55 @@ export class BatchListItemModel {
   static fromApi(data: Record<string, any>) {
     return new BatchListItemModel(data);
   }
+}
+
+function batchRowToRecord(row: BatchListItemModel | Record<string, any> | null | undefined) {
+  if (!row) return {};
+  return { ...(row as Record<string, any>) };
+}
+
+function hasDepartmentName(row: Record<string, any>) {
+  return Boolean(String(row.department?.departmentName ?? "").trim());
+}
+
+function hasSubDepartments(row: Record<string, any>) {
+  return Array.isArray(row.subDepartments) && row.subDepartments.length > 0;
+}
+
+function pickRawStage(detail: Record<string, any>, list: Record<string, any>) {
+  if (detail.rawStage != null && detail.rawStage !== "") return detail.rawStage;
+  if (detail.stage != null && detail.stage !== "") return detail.stage;
+  if (list.rawStage != null && list.rawStage !== "") return list.rawStage;
+  return list.stage ?? null;
+}
+
+/** Preserve list workflow fields when the details API omits stage/status/priority. */
+export function mergeBatchListAndDetailRows(
+  listRow: BatchListItemModel | Record<string, any> | null | undefined,
+  detailRow: BatchListItemModel | Record<string, any> | null | undefined,
+): BatchListItemModel {
+  const list = batchRowToRecord(listRow);
+  const detail = batchRowToRecord(detailRow);
+
+  return BatchListItemModel.fromApi({
+    ...list,
+    ...detail,
+    department: hasDepartmentName(detail) ? detail.department : list.department,
+    subDepartments: hasSubDepartments(detail) ? detail.subDepartments : list.subDepartments,
+    stage: pickRawStage(detail, list),
+    rawStage: pickRawStage(detail, list),
+    subDepartment: detail.subDepartment ?? list.subDepartment,
+    subDept: detail.subDept ?? list.subDept,
+    subDepartmentName: detail.subDepartmentName ?? list.subDepartmentName,
+    departmentName: detail.departmentName ?? list.departmentName ?? list.department?.departmentName,
+    status: detail.status ?? list.status,
+    priority: detail.priority ?? list.priority,
+    identificationSheetStatus:
+      detail.identificationSheetStatus ?? list.identificationSheetStatus,
+    projectName: detail.projectName ?? list.projectName,
+    systemManager: detail.systemManager ?? list.systemManager,
+    lotIds: Array.isArray(detail.lotIds) && detail.lotIds.length > 0 ? detail.lotIds : list.lotIds,
+  });
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import {
 } from "./DispatchFormModel";
 import type { SchemaSectionSubmission } from "../../../schema-engine";
 
-export type DispatchSubmissionType = "DRAFT" | "SUBMIT" | "UPDATE";
+export type DispatchSubmissionType = "DRAFT" | "SUBMIT";
 
 export class DispatchSubmitResponseModel {
   formId: string;
@@ -37,7 +37,7 @@ export class DispatchDetailsModel {
   ndtMomNo: string;
   finalAcceptanceClearance: string;
   finalAcceptanceMomNo: string;
-  sections: SchemaSectionSubmission[];
+  schemaValues: Record<string, any>;
   workflowInsights: {
     currentStatus: string;
     rejectionReason: string | null;
@@ -47,20 +47,40 @@ export class DispatchDetailsModel {
     this.formId = payload?.formId ?? "";
     this.batchId = payload?.batchId ?? "";
     this.subDepartmentId = Number(payload?.subDepartmentId ?? 0);
-    this.formSubmissionType = payload?.formSubmissionType ?? "";
-    this.motorStage = payload?.motorStage ?? "";
-    this.motorId = payload?.motorId ?? "";
-    this.castingDate = payload?.castingDate ?? "";
-    this.dispatchDate = payload?.dispatchDate ?? "";
-    this.dispatchLocation = payload?.dispatchLocation ?? "";
-    this.ndtClearance = payload?.ndtClearance ?? "";
-    this.ndtMomNo = payload?.ndtMomNo ?? "";
-    this.finalAcceptanceClearance = payload?.finalAcceptanceClearance ?? "";
-    this.finalAcceptanceMomNo = payload?.finalAcceptanceMomNo ?? "";
-    this.sections = Array.isArray(payload?.sections) ? payload.sections : [];
+    this.formSubmissionType = payload?.formSubmissionType ?? payload?.formStatus ?? "";
+    
+    // Safely extract the first motor's nested dispatch details from backend schema
+    const motorObj = Array.isArray(payload?.motors) ? payload.motors[0] : null;
+    const details = motorObj?.dispatchDetails ?? {};
+
+    this.motorId = motorObj?.motorId ?? "";
+    this.motorStage = details?.stage ? details.stage.replace("STAGE_", "") : "";
+    this.castingDate = details?.castingDate ?? "";
+    this.dispatchDate = details?.dispatchDate ?? "";
+    this.dispatchLocation = details?.dispatchLocation ?? "";
+    
+    this.ndtClearance = details?.ndtClearance?.accorded ?? "NO";
+    this.ndtMomNo = details?.ndtClearance?.momNo ?? "";
+    
+    this.finalAcceptanceClearance = details?.finalAcceptanceCommitteeClearance?.accorded ?? "NO";
+    this.finalAcceptanceMomNo = details?.finalAcceptanceCommitteeClearance?.momNo ?? "";
+    
+    // Package nested JSON arrays up for the dynamic form state engine
+    this.schemaValues = {
+      projectName: details?.projectName ?? "",
+      propellantProperties: details?.propellantProperties ?? [],
+      waiverDetails: details?.waiverDetails ?? null,
+      rocketMotorInspection: details?.rocketMotorInspection ?? [],
+      vehicleDetails: details?.vehicleDetails ?? [],
+      rocketMotorPackingDetails: details?.rocketMotorPackingDetails ?? [],
+      uploadDispatchPhotos: details?.uploadDispatchPhotos ?? [],
+      safetyClearance: details?.safetyClearance ?? null,
+      dispatchTeam: details?.dispatchTeam ?? null,
+    };
+
     this.workflowInsights = {
-      currentStatus: payload?.workflowInsights?.currentStatus ?? "",
-      rejectionReason: payload?.workflowInsights?.rejectionReason ?? null,
+      currentStatus: payload?.formStatus ?? "",
+      rejectionReason: payload?.rejectionReason ?? null,
     };
   }
 
@@ -68,7 +88,7 @@ export class DispatchDetailsModel {
     return new DispatchDetailsModel(apiResponse?.data ?? {});
   }
 
-  static toFormState(model: DispatchDetailsModel) {
+  static toFormState(model: DispatchDetailsModel): DispatchFormState {
     return mapDispatchDetailsToFormState({
       formId: model.formId,
       batchId: model.batchId,
@@ -83,7 +103,7 @@ export class DispatchDetailsModel {
       ndtMomNo: model.ndtMomNo,
       finalAcceptanceClearance: model.finalAcceptanceClearance,
       finalAcceptanceMomNo: model.finalAcceptanceMomNo,
-      sections: model.sections,
+      schemaValues: model.schemaValues,
     });
   }
 }

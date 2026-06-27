@@ -401,7 +401,6 @@ const NDTDetailDialog = ({ open, onClose, item, detailData, detailsLoading, onAp
           </Stack>
 
           <Stack direction="row" gap={1} alignItems="center">
-            <PriorityChip priority={item.priority} />
             <Button
               size="small" variant="contained"
               startIcon={<PictureAsPdfRoundedIcon sx={{ fontSize: "14px !important" }} />}
@@ -434,7 +433,6 @@ const NDTDetailDialog = ({ open, onClose, item, detailData, detailsLoading, onAp
               { label: "Form ID",      value: item.formId },
               { label: "Submitted By", value: item.submittedBy },
               { label: "Date",         value: new Date(item.createdOn).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
-              { label: "Priority",     value: item.priority },
             ].map(({ label, value }) => (
               <Box key={label}>
                 <Typography sx={{ fontSize: "0.62rem", fontWeight: 700, color: BRAND.textSub, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -636,7 +634,6 @@ const NDTApproverPage = () => {
       statusField="status"
       statusMeta={QC_STATUS_META}
       searchKeys={["batchId", "motorId", "submittedBy"]}
-      filterFields={[{ field: "priority", label: "Priority", options: ["Critical", "High", "Medium", "Low"] }]}
     >
       {(filtered) => (
         <>
@@ -659,7 +656,6 @@ const NDTApproverPage = () => {
                     <TH>Defects Noted</TH>
                     <TH>Mech Samples</TH>
                     <TH>Date</TH>
-                    <TH>Priority</TH>
                     <TH>Status</TH>
                     <TH sx={{ textAlign: "center" }}>Action</TH>
                   </TableRow>
@@ -733,9 +729,6 @@ const NDTApproverPage = () => {
                           })}
                         </TD>
 
-                        <TD>
-                          <PriorityChip priority={row.priority} />
-                        </TD>
                         <TD>
                           <StatusChip status={row.status} />
                         </TD>

@@ -6,24 +6,24 @@ import { useUserBatchRefreshStore } from "../../../app/store/userBatchRefreshSto
 import dispatchController from "../../../controllers/user/dispatch/dispatchController";
 import {
   DispatchDetailsModel,
-  mapDispatchPayload,
 } from "../../../data/models/user/DispatchApiModel";
 import {
   createDefaultDispatchFormState,
   hasAnyDispatchValue,
   hydrateDispatchFormState,
+  mapDispatchFormStateToBackendPayload,
+  mapDispatchFormStateToUpdatePayload,
   type DispatchFormState,
 } from "../../../data/models/user/DispatchFormModel";
 import { fetchDispatchSchema, type SchemaFormValues } from "../../../schema-engine";
 import {
   canLoadDispatchForm,
-  mergeDispatchMockBatches,
   type DispatchBatch,
 } from "./dispatchFlowConfig";
 import { OPERATION_STATUS } from "../../operationStatus";
 import { useSubdepartmentBatches } from "../useSubdepartmentBatches";
 
-type WorkflowView = "list" | "form";
+type WorkflowView = "list" | "form" | "details";
 
 const normalizeBatch = (batch: any): DispatchBatch => ({
   ...batch,
@@ -52,19 +52,23 @@ export const useDispatchHook = () => {
   const [view, setView] = useState<WorkflowView>("list");
   const [activeBatch, setActiveBatch] = useState<DispatchBatch | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [formData, setFormData] = useState<DispatchFormState>(createDefaultDispatchFormState());
-  const [initialSnapshot, setInitialSnapshot] = useState(
-    JSON.stringify(createDefaultDispatchFormState()),
-  );
   const [loadingFormDetails, setLoadingFormDetails] = useState(false);
+  
+  const [detailsRow, setDetailsRow] = useState<any>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
 
+  const [formData, setFormData] = useState<DispatchFormState>(() => createDefaultDispatchFormState());
+  const [initialSnapshot, setInitialSnapshot] = useState("{}");
+
   const batches = useMemo(
-    () => mergeDispatchMockBatches((listParams.batches ?? []).map(normalizeBatch)),
+    () => (listParams.batches ?? []).map(normalizeBatch),
     [listParams.batches],
   );
 
@@ -88,6 +92,8 @@ export const useDispatchHook = () => {
     setActionLoading(false);
     setBackConfirmOpen(false);
     setHasSavedDraft(false);
+    setDetailsRow(null);
+    setDetailsData(null);
   }, []);
 
   const getErrorMessage = (response: any, fallbackMessage: string) => {
@@ -128,16 +134,10 @@ export const useDispatchHook = () => {
           next.dispatchSchema = null;
           next.schemaFormValues = {};
         }
-        if (
-          field === "ndtClearance" &&
-          value !== "YES"
-        ) {
+        if (field === "ndtClearance" && value !== "YES") {
           next.ndtMomNo = "";
         }
-        if (
-          field === "finalAcceptanceClearance" &&
-          value !== "YES"
-        ) {
+        if (field === "finalAcceptanceClearance" && value !== "YES") {
           next.finalAcceptanceMomNo = "";
         }
         if (
@@ -200,7 +200,7 @@ export const useDispatchHook = () => {
         setLoadingFormDetails(true);
         const detailsResponse = await dispatchController.fetchFormDetails({
           formId: resolvedFormId,
-          subDepartmentId,
+          // subDepartmentId,
         });
         setLoadingFormDetails(false);
 
@@ -234,7 +234,7 @@ export const useDispatchHook = () => {
       setIsEditMode(editMode);
       setView("form");
 
-      if (resolvedData.savedSections?.length || shouldFetchDetails) {
+      if (resolvedData.savedSchemaValues || shouldFetchDetails) {
         const schema = await fetchDispatchSchemaDocument();
         if (schema) {
           const hydrated = hydrateDispatchFormState(resolvedData, schema);
@@ -246,16 +246,40 @@ export const useDispatchHook = () => {
 
       setInitialSnapshot(JSON.stringify(resolvedData));
     },
-    [
-      fetchDispatchSchemaDocument,
-      messages.DETAILS_FETCH_ERROR,
-      messages.DETAILS_NOT_FOUND,
-      messages.FORM_ID_MISSING,
-      messages.SUB_DEPARTMENT_MISSING,
-      showAlert,
-      subDepartmentId,
-    ],
+    [fetchDispatchSchemaDocument, messages.DETAILS_FETCH_ERROR, messages.DETAILS_NOT_FOUND, messages.FORM_ID_MISSING, messages.SUB_DEPARTMENT_MISSING, showAlert, subDepartmentId],
   );
+
+  const handleViewDispatchDetails = useCallback(
+    async (row: DispatchBatch) => {
+      if (!row.formId) {
+        showAlert(messages.FORM_ID_MISSING, "error");
+        return;
+      }
+
+      setDetailsLoading(true);
+      const response = await dispatchController.fetchFormDetails({
+        formId: row.formId,
+        // subDepartmentId: subDepartmentId ?? 0,
+      });
+      setDetailsLoading(false);
+
+      if (!response?.success || !response?.data) {
+        showAlert(getErrorMessage(response, messages.DETAILS_FETCH_ERROR), "error");
+        return;
+      }
+
+      setDetailsRow(row);
+      setDetailsData(response.data);
+      setView("details");
+    },
+    [messages.FORM_ID_MISSING, messages.DETAILS_FETCH_ERROR, showAlert, subDepartmentId],
+  );
+
+  const handleBackFromDetails = useCallback(() => {
+    setDetailsRow(null);
+    setDetailsData(null);
+    setView("list");
+  }, []);
 
   const handleFillForm = useCallback(
     async (batch: DispatchBatch) => {
@@ -271,7 +295,7 @@ export const useDispatchHook = () => {
     [openFormWithResolvedData],
   );
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (view === "form" && isFormDirty) {
       setBackConfirmOpen(true);
       return;
@@ -279,111 +303,123 @@ export const useDispatchHook = () => {
 
     if (hasSavedDraft) bumpBatchRefresh();
     resetFormContext();
-  };
+  }, [view, isFormDirty, hasSavedDraft, bumpBatchRefresh, resetFormContext]);
 
-  const handleDiscardAndBack = () => {
+  const handleDiscardAndBack = useCallback(() => {
     setBackConfirmOpen(false);
     if (hasSavedDraft) bumpBatchRefresh();
     resetFormContext();
-  };
+  }, [hasSavedDraft, bumpBatchRefresh, resetFormContext]);
 
-  const submitForm = async (intent: "draft" | "submit") => {
-    if (!activeBatch) return false;
+  const submitForm = useCallback(
+    async (intent: "draft" | "submit") => {
+      if (!activeBatch) return false;
 
-    if (!subDepartmentId) {
-      showAlert(messages.SUB_DEPARTMENT_MISSING, "error");
-      return false;
-    }
+      if (!subDepartmentId) {
+        showAlert(messages.SUB_DEPARTMENT_MISSING, "error");
+        return false;
+      }
 
-    if (!formData.schemaFormLoaded || !formData.dispatchSchema) {
-      showAlert(messages.SCHEMA_NOT_LOADED, "warning");
-      return false;
-    }
+      if (!formData.schemaFormLoaded || !formData.dispatchSchema) {
+        showAlert(messages.SCHEMA_NOT_LOADED, "warning");
+        return false;
+      }
 
-    if (!hasAnyDispatchValue(formData)) {
-      showAlert(messages.EMPTY_FORM_ERROR, "warning");
-      return false;
-    }
+      if (!hasAnyDispatchValue(formData)) {
+        showAlert(messages.EMPTY_FORM_ERROR, "warning");
+        return false;
+      }
 
-    const mapped = mapDispatchPayload(formData);
-    const isCreateFlow =
-      activeBatch.dispatchStatus === OPERATION_STATUS.INITIATED && !activeBatch.formId;
+      const submissionMode: "DRAFT" | "SUBMIT" = 
+        intent === "draft" ? "DRAFT" : "SUBMIT";
 
-    setActionLoading(true);
-    try {
-      let response;
+      const isCreateFlow =
+        activeBatch.dispatchStatus === OPERATION_STATUS.INITIATED && !activeBatch.formId;
 
+      // Conditional payload assembly logic matching mapping architecture
+      let mappedPayload;
       if (isCreateFlow) {
         if (!activeBatch.batchId) {
           showAlert(messages.BATCH_ID_MISSING, "error");
           return false;
         }
-
-        response = await dispatchController.createForm({
-          batchId: activeBatch.batchId,
+        mappedPayload = mapDispatchFormStateToBackendPayload(
+          formData,
+          activeBatch.batchId,
           subDepartmentId,
-          formSubmissionType: intent === "draft" ? "DRAFT" : "SUBMIT",
-          ...mapped,
-        });
+          submissionMode
+        );
       } else {
         if (!activeBatch.formId) {
           showAlert(messages.FORM_ID_MISSING, "error");
           return false;
         }
-
-        response = await dispatchController.updateForm({
-          formId: activeBatch.formId,
+        mappedPayload = mapDispatchFormStateToUpdatePayload(
+          formData,
+          activeBatch.formId,
+          activeBatch.batchId,
           subDepartmentId,
-          formSubmissionType: intent === "draft" ? "DRAFT" : "UPDATE",
-          ...mapped,
-        });
-      }
-
-      if (!response?.success) {
-        const fallback = isCreateFlow ? messages.CREATE_FAILED : messages.UPDATE_FAILED;
-        showAlert(getErrorMessage(response, fallback), "error");
-        return false;
-      }
-
-      const nextFormId = response.data?.formId ?? activeBatch.formId ?? null;
-      setActiveBatch((prev) => (prev ? { ...prev, formId: nextFormId } : prev));
-      setInitialSnapshot(formSnapshot);
-
-      if (intent === "draft") {
-        showAlert(
-          isCreateFlow ? messages.CREATE_DRAFT_SUCCESS : messages.UPDATE_DRAFT_SUCCESS,
-          "success",
-          { autoCloseMs: 2200 },
+          submissionMode
         );
-        setHasSavedDraft(true);
-      } else {
-        showAlert(
-          isCreateFlow ? messages.CREATE_SUBMIT_SUCCESS : messages.UPDATE_SUBMIT_SUCCESS,
-          "success",
-          { autoCloseMs: 2200 },
-        );
-        await listParams.refreshUserBatches();
-        resetFormContext();
       }
 
-      return true;
-    } finally {
-      setActionLoading(false);
-    }
-  };
+      setActionLoading(true);
+      try {
+        let response;
 
-  const handleSaveDraft = async () => submitForm("draft");
-  const handleSubmit = async () => submitForm("submit");
+        if (isCreateFlow) {
+          response = await dispatchController.createForm(mappedPayload);
+        } else {
+          response = await dispatchController.updateForm(mappedPayload);
+        }
+
+        if (!response?.success) {
+          const fallback = isCreateFlow ? messages.CREATE_FAILED : messages.UPDATE_FAILED;
+          showAlert(getErrorMessage(response, fallback), "error");
+          return false;
+        }
+
+        const nextFormId = response.data?.formId ?? activeBatch.formId ?? null;
+        setActiveBatch((prev) => (prev ? { ...prev, formId: nextFormId } : prev));
+        setInitialSnapshot(formSnapshot);
+
+        if (intent === "draft") {
+          showAlert(
+            isCreateFlow ? messages.CREATE_DRAFT_SUCCESS : messages.UPDATE_DRAFT_SUCCESS,
+            "success",
+            { autoCloseMs: 2200 },
+          );
+          setHasSavedDraft(true);
+        } else {
+          showAlert(
+            isCreateFlow ? messages.CREATE_SUBMIT_SUCCESS : messages.UPDATE_SUBMIT_SUCCESS,
+            "success",
+            { autoCloseMs: 2200 },
+          );
+          await listParams.refreshUserBatches();
+          resetFormContext();
+        }
+
+        return true;
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [activeBatch, subDepartmentId, formData, messages, formSnapshot, showAlert, listParams, resetFormContext],
+  );
+
+  const handleSaveDraft = useCallback(async () => submitForm("draft"), [submitForm]);
+  const handleSubmit = useCallback(async () => submitForm("submit"), [submitForm]);
 
   return {
     ...listParams,
+    loading: listParams.loading || loadingFormDetails,
     batches,
     view,
     activeBatch,
     isEditMode,
     formData,
     isFormDirty,
-    loadingFormDetails,
     schemaLoading,
     schemaError,
     actionLoading,
@@ -399,6 +435,11 @@ export const useDispatchHook = () => {
     handleFormValuesChange,
     handleSaveDraft,
     handleSubmit,
+    detailsRow,
+    detailsData,
+    detailsLoading,
+    handleViewDispatchDetails,
+    handleBackFromDetails,
   };
 };
 

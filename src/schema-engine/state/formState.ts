@@ -1,7 +1,7 @@
 import type { SchemaBlock, SchemaDocumentV2, SchemaFieldBlock, SchemaRepeatConfig, SchemaSection, SchemaTableBlock } from "../types";
 import { applyFormulaColumns } from "../rules/formulaEval";
 import { resolveSchemaCountToken, type SchemaSetupContext } from "../utils/setupContext";
-import { flattenTableColumns, walkBlocks } from "../utils/schemaUtils";
+import { flattenTableColumns } from "../utils/schemaUtils";
 import {
   applyExtraColumnCellsToRows,
   buildInitialExtraColumns,
@@ -15,6 +15,12 @@ import {
 import { buildEmptyPickerRow } from "../rules/tableCommitGroup";
 
 export type SchemaFormValues = Record<string, unknown>;
+
+const SCOPED_FORM_KEY_SEP = "::";
+
+/** Form-state key for a block within a section (avoids duplicate field ids across sections). */
+export const scopedFormKey = (scope: string | undefined, blockId: string): string =>
+  scope ? `${scope}${SCOPED_FORM_KEY_SEP}${blockId}` : blockId;
 
 export type SchemaSectionSubmission = {
   sectionId: string;
@@ -157,13 +163,13 @@ export const buildInitialFormValues = (
 ): SchemaFormValues => {
   const values: SchemaFormValues = {};
 
-  const assignBlock = (block: SchemaBlock) => {
+  const assignBlock = (block: SchemaBlock, scope: string) => {
     if (block.type === "section" && block.repeat) {
       values[block.id] = initBlockValue(block, setupContext);
       return;
     }
     if (block.type === "section") {
-      (block.children ?? []).forEach(assignBlock);
+      (block.children ?? []).forEach((child) => assignBlock(child, block.id));
       return;
     }
     if (block.type === "group") {
@@ -171,16 +177,16 @@ export const buildInitialFormValues = (
         values[block.id] = initBlockValue(block, setupContext);
         return;
       }
-      (block.children ?? []).forEach(assignBlock);
+      (block.children ?? []).forEach((child) => assignBlock(child, scope));
       return;
     }
     if (block.type === "field" || block.type === "table" || block.type === "matrix") {
-      values[block.id] = initBlockValue(block, setupContext);
+      values[scopedFormKey(scope, block.id)] = initBlockValue(block, setupContext);
     }
   };
 
   schema.data.sections.forEach((section) => {
-    (section.children ?? []).forEach(assignBlock);
+    (section.children ?? []).forEach((block) => assignBlock(block, section.id));
   });
   return values;
 };
@@ -203,7 +209,11 @@ const sanitizeSubmissionValue = (value: unknown): unknown => {
   return value;
 };
 
-const collectSectionRow = (blocks: SchemaBlock[], values: SchemaFormValues): Record<string, unknown> => {
+const collectSectionRow = (
+  blocks: SchemaBlock[],
+  values: SchemaFormValues,
+  scope: string,
+): Record<string, unknown> => {
   const row: Record<string, unknown> = {};
   blocks.forEach((block) => {
     if (block.type === "group") {
@@ -212,19 +222,20 @@ const collectSectionRow = (blocks: SchemaBlock[], values: SchemaFormValues): Rec
           row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id]));
         }
       } else {
-        Object.assign(row, collectSectionRow(block.children ?? [], values));
+        Object.assign(row, collectSectionRow(block.children ?? [], values, scope));
       }
       return;
     }
     if (block.type === "field" || block.type === "table" || block.type === "matrix") {
-      if (values[block.id] !== undefined) {
-        row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id]));
+      const key = scopedFormKey(scope, block.id);
+      if (values[key] !== undefined) {
+        row[block.id] = sanitizeSubmissionValue(cloneValue(values[key]));
       }
     }
     if (block.type === "section" && block.repeat) {
       row[block.id] = sanitizeSubmissionValue(cloneValue(values[block.id] ?? []));
     } else if (block.type === "section") {
-      Object.assign(row, collectSectionRow(block.children ?? [], values));
+      Object.assign(row, collectSectionRow(block.children ?? [], values, block.id));
     }
   });
   return row;
@@ -236,7 +247,7 @@ export const toSectionSubmissions = (
 ): SchemaSectionSubmission[] =>
   schema.data.sections.map((section) => ({
     sectionId: section.id,
-    sectionData: [collectSectionRow(section.children ?? [], values)],
+    sectionData: [collectSectionRow(section.children ?? [], values, section.id)],
   }));
 
 export const mergeSectionDataIntoValues = (
@@ -253,10 +264,35 @@ export const mergeSectionDataIntoValues = (
     const savedRow = saved[0];
     if (!savedRow || typeof savedRow !== "object") return;
 
-    walkBlocks(section.children ?? [], (block) => {
-      if (!(block.id in (savedRow as Record<string, unknown>))) return;
-      initial[block.id] = cloneValue((savedRow as Record<string, unknown>)[block.id]);
-    });
+    const applySavedBlock = (block: SchemaBlock, scope: string) => {
+      if (block.type === "section" && block.repeat) {
+        if (block.id in (savedRow as Record<string, unknown>)) {
+          initial[block.id] = cloneValue((savedRow as Record<string, unknown>)[block.id]);
+        }
+        return;
+      }
+      if (block.type === "section") {
+        (block.children ?? []).forEach((child) => applySavedBlock(child, block.id));
+        return;
+      }
+      if (block.type === "group") {
+        if (block.repeat) {
+          if (block.id in (savedRow as Record<string, unknown>)) {
+            initial[block.id] = cloneValue((savedRow as Record<string, unknown>)[block.id]);
+          }
+          return;
+        }
+        (block.children ?? []).forEach((child) => applySavedBlock(child, scope));
+        return;
+      }
+      if (block.type === "field" || block.type === "table" || block.type === "matrix") {
+        if (block.id in (savedRow as Record<string, unknown>)) {
+          initial[scopedFormKey(scope, block.id)] = cloneValue((savedRow as Record<string, unknown>)[block.id]);
+        }
+      }
+    };
+
+    (section.children ?? []).forEach((block) => applySavedBlock(block, section.id));
   });
 
   return initial;
@@ -280,9 +316,15 @@ export const schemaValuesHaveUserData = (values: SchemaFormValues): boolean => {
   return Object.values(values).some(hasContent);
 };
 
-export const getBlockValue = (values: SchemaFormValues, blockId: string) => values[blockId];
+export const getBlockValue = (values: SchemaFormValues, blockId: string, scope?: string) =>
+  values[scopedFormKey(scope, blockId)];
 
-export const setBlockValue = (values: SchemaFormValues, blockId: string, value: unknown): SchemaFormValues => ({
+export const setBlockValue = (
+  values: SchemaFormValues,
+  blockId: string,
+  value: unknown,
+  scope?: string,
+): SchemaFormValues => ({
   ...values,
-  [blockId]: value,
+  [scopedFormKey(scope, blockId)]: value,
 });
